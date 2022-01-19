@@ -34,8 +34,8 @@ class TempGUI:
         obs_y = [get_y(obs) for obs in obstacles]
         plt.scatter(obs_x, obs_y, color='r')
 
-        biggest_x, biggest_y = max(targets_x), max(targets_y)
-        smallest_x, smallest_y = min(targets_x), min(targets_y)
+        biggest_x, biggest_y = max(max(path_x), max(targets_x)),  max(max(path_y), max(targets_y))
+        smallest_x, smallest_y = min(min(path_x), max(targets_x)), min(min(path_y), min(targets_y))
 
         plt.xticks([i for i in range(smallest_x-3, biggest_x+3)])
         plt.yticks([i for i in range(smallest_y-3, biggest_y+3)])

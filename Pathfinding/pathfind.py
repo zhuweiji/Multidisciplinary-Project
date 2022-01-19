@@ -88,14 +88,6 @@ class Pathfinder:
 
         memo = {}
 
-        def change_val(current: int, diff: int, increment: bool):
-            """
-            Helper function:
-            eg. If going right, x-value needs to increment, otherwise it needs to decrement
-            This function abstracts that to reduce the amount of code in the main function
-            """
-            return current + diff if increment else current - diff
-
         def _get_path(x_start: int, y_start: int, x_end: int, y_end: int, step_size: int = 1) -> typing.Dict[str, typing.Union[typing.List, int]]:
             """
             Internal get path function that does all the calculation between two points mentioned in the enclosing function
@@ -132,7 +124,7 @@ class Pathfinder:
             total_distance = diagonal_distance + straight_line_dist_remaining
 
             # find the (x,y) coordinates of each step along the diagonal
-            diagonal_path = [(change_val(x_start, i, going_right), change_val(y_start, i, going_up))
+            diagonal_path = [(Pathfinder._change_val(x_start, i, going_right), Pathfinder._change_val(y_start, i, going_up))
                              for i in range(1, longest_diagonal_1d_length+1)]
 
             path.extend(diagonal_path)
@@ -145,10 +137,10 @@ class Pathfinder:
                 current_x, current_y = x_start, y_start
 
             if dist_x < dist_y:  # diagonal limited by x
-                path.extend([(current_x, change_val(current_y, i, going_up))
+                path.extend([(current_x, Pathfinder._change_val(current_y, i, going_up))
                              for i in range(1, straight_line_dist_remaining+1)])
             else:
-                path.extend([(change_val(current_x, i, going_right), current_y)
+                path.extend([(Pathfinder._change_val(current_x, i, going_right), current_y)
                              for i in range(1, straight_line_dist_remaining+1)])
 
             # check if obstacls are in diagonal path
@@ -164,33 +156,57 @@ class Pathfinder:
             memo[memo_key] = result
             return result
 
+
         x_start, y_start = Pathfinder.extract_pos(start_node)
         x_end, y_end = Pathfinder.extract_pos(end_node)
 
-        # BFS to find any path from the current location to the target location
-        # logic is like Grid Traveller problem
-        queue = [(x_start, y_start, x_end, y_end)]
+        # try find uninterrupted path from start to target
+        result = _get_path(x_start, y_start, x_end, y_end)
+        if result: 
+            return result
+        else:
+            # try travelling outward in any of the four directions, and see if there are valid paths there
+            queue = []
 
-        while queue:
-            x1, y1, x2, y2 = queue.pop(0)
+            # save the coordinates of the immediate right, top, bottom and left nodes in a queue
+            for (change_x, change_y) in [(1, 0), (0, 1), (0, -1), (-1, 0)]:
+                new_starting_location = (x_start+change_x, y_start+change_y, x_end, y_end)
+                queue.append(new_starting_location)
 
-            result = _get_path(x1, y1, x2, y2)
+            # try running get_path from those locations, and if there is no valid path, try going more in that same direction
+            while queue:
+                x1, y1, x2, y2 = queue.pop(0)
+                going_right, going_left = x1 > x_start, x1 < x_start
+                going_up,    going_down = y1 > y_start, y1 < y_start
 
-            if result:
-                if (x1 != x_start or y1 != y_start):
-                    # todo fix: find path even if there is an obstacle between the intermediate point and the start
-                    intermediate_result = _get_path(x_start, y_start, x1, y1)
-                    result['path'] = [*intermediate_result['path'], *result['path']]
-                    result['distance'] = intermediate_result['distance'] + \
-                        result['distance']
-                return result
-            else:
-                # change to try in all straight direction only
-                for (change_x, change_y) in [(1, 0), (0, 1), (0, -1), (-1, 0)]:
-                    obj = (x1+change_x, y1+change_y, x2, y2)
-                    queue.append(obj)
+                if (x1, y1) in obstacles:
+                    going_right, going_left, going_up, going_down = False, False, False, False
+                    continue
+                else:
+                    result = _get_path(x1, y1, x2, y2)
 
-        return result
+                    if result: 
+                        length_of_travel = max(abs(x1-x_start), abs(y1-y_start))
+                        path_to_intermediate = [
+                            (x_start+i, y_start) if going_right else
+                            (x_start-i, y_start) if going_left else
+                            (x_start, y_start+i) if going_up else
+                            (x_start, y_start-i)
+                            for i in range(1, length_of_travel+1)
+                        ]
+                        result['path'] = [*path_to_intermediate, *result['path']]
+                        result['distance'] = result['distance'] + length_of_travel
+                        return result
+                    else:
+                        new_starting_location = (
+                            (x1+1, y1, x2, y2) if going_right else
+                            (x1-1, y1, x2, y2) if going_left else
+                            (x1, y1+1, x2, y2) if going_up else
+                            (x1, y1-1, x2, y2)
+                        )
+                        queue.append(new_starting_location)
+
+        return None
 
     @staticmethod
     def extract_pos(node: typing.Union[Node, typing.Tuple]):
@@ -204,3 +220,15 @@ class Pathfinder:
                 'Object must be either a Node instance or a tuple of two values (x,y)')
 
         return x_end, y_end
+
+    @staticmethod
+    def _change_val(current: int, diff: int, increment: bool):
+        """
+        Helper function:
+        eg. If going right, x-value needs to increment, otherwise it needs to decrement
+        This function abstracts that to reduce the amount of code in the main function
+        """
+        return current + diff if increment else current - diff
+
+
+
