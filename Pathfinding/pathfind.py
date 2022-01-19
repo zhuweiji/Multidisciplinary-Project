@@ -16,6 +16,24 @@ class Node:
 class Pathfinder:
     @staticmethod
     def get_path_between_points(node_list: typing.List[Node], obstacles: list):
+        '''	
+        Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
+        
+        Parameters
+        ----------
+        node_list: List(Nodes)
+            The nodes to travel to, in the order of travel
+        obstacles: List(Nodes or Tuples) - mixed Tuple and Nodes are allowed
+            A list of the location of obstacles, of which travel on is prohibited
+
+        Returns
+        -------
+        {
+            'path': List(Tuples)
+            'distance': int
+        }
+        '''
+
         total_path, total_distance = [], 0
 
         for i in range(len(node_list)-1):
@@ -28,6 +46,25 @@ class Pathfinder:
 
     @staticmethod
     def shortest_path_to_n_points(start_node: Node, node_list: typing.List[Node], obstacles: list):
+        '''	
+        Given a unordered list of nodes, and a starting location, try to find the shortest path that will travel to all of the given nodes
+        
+        Parameters
+        ----------
+        start_node: Node
+            The starting node from which the path will be started on the given
+        node_list: List(Node)
+            An unordered list of target nodes which will be visited. The order of visting is not guaranteed to be the same as the order in the list
+        obstacles: List(Tuple or Node)
+            A list of the location of obstacles, of which travel on is prohibited
+
+        Returns
+        -------
+        {
+            'path': List(Tuples)
+            'distance': int
+        }
+        '''
         result = {}
         if len(node_list) == 0:
             raise ValueError('Cannot find path if there are no target nodes')
