@@ -1,3 +1,4 @@
 *.pyc
 *_pycache_/
 Pathfinding/__pycache__/pathfind.cpython-310.pyc
+.venv/
