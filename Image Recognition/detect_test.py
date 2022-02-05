@@ -246,10 +246,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
              'Left': 'Left', '9': '9', '1': '1', 'Right': 'Right', '7': '7', '6': '6', '3': '3', '2': '2',
              'Up': 'Up'}
     try:
-        if (result[o] in seen_labels):
-            return "null"
-        else:
-            return result[o]
+        return result[o]
     except (ValueError, Exception):
         return 'null'
 

@@ -49,7 +49,7 @@ def main(opt):
     return label
     
 # Capture frame-by-frame
-count = 0   # This would make sure we can capture every 20 frames i think
+count = 10   # This would make sure we can capture every 20 frames i think
 
 actual_img_count_without_duplicate = 0
 
@@ -60,7 +60,7 @@ while(True):
     ret, frame = cap.read()
 
     # Display the resulting frame
-    if count%20==0:
+    if count%10==0:
         cv2.imshow("preview",frame)
 
         file_path1 = "C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/images/outputImage.jpg"  # We'll constantly override this so as to ensure we only have 1 image file in the folder at all times
@@ -69,21 +69,23 @@ while(True):
         
         cv2.imwrite(file_path1, frame)
 
-        time.sleep(2)
+     #   time.sleep(2)
         if len(os.listdir( "C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/images" ) ) == 0:   # Just to make sure the folder isnt empty, else there'l be an error
             continue
         else:
             if __name__ == "__main__":
                 opt = parse_opt()
                 label = main(opt)
-                seen_images.append(file_path1)
+        #        print("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+                print("I SEE", label)
+                # seen_images.append(file_path1)
                 if (label == "null"):
                     continue
                 if (label not in seen_labels):
                     seen_labels.append(label)
-                    file_path2 = "C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/collage_actual/ToutputImage{0}.jpg".format(actual_img_count_without_duplicate)
-                    actual_img_count_without_duplicate += 1
-                    cv2.imwrite(file_path2, frame)
+                 #   file_path2 = "C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/collage_actual/ToutputImage{0}.jpg".format(actual_img_count_without_duplicate)
+        #            actual_img_count_without_duplicate += 1
+         #           cv2.imwrite(file_path2, frame)
     count += 1
     
 
