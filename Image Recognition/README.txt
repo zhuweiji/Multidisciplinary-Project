@@ -1,9 +1,12 @@
 
 do pip install -r requirements.txt to install dependencies
 
-Run MainModule. This relies on detect_test, detext_test has been modified to fit our purposes
+MainModule.py is not needed anymore for now
 
-Run this in command prompt to run MainModule.py
-python C:\Users\micha\OneDrive\Desktop\PRED\content\PRED\MainModule.py --weights C:\Users\micha\OneDrive\Desktop\PRED\content\PRED\best.pt --conf 0.5 --source C:\Users\micha\OneDrive\Desktop\PRED\content\PRED\images
 
-If might not work cos you'll need to configure the file paths to your own
+Just run detect_V2 to perform inference/predictions 
+
+Run this in command prompt to run detect_V2.py
+python C:\Users\micha\OneDrive\Desktop\PRED\content\PRED\detect_V2.py 
+
+If might not work cos you'll need to configure the file paths to your own, you can do so by editing the detect_V2.py in some IDE
