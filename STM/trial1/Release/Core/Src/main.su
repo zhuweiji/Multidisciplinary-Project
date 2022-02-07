@@ -1,0 +1,7 @@
+main.c:535:6:StartDefaultTask	8	static
+main.c:553:6:motors	16	static
+main.c:619:6:encoder_task	80	static
+main.c:703:6:show	32	static
+main.c:196:6:SystemClock_Config	88	static,ignoring_inline_asm
+main.c:105:5:main	112	static,ignoring_inline_asm
+main.c:721:6:Error_Handler	0	static,ignoring_inline_asm
