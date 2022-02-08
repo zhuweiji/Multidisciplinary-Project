@@ -34,7 +34,7 @@ class UserInputInterface:
     def send_msg(cls, msg):
         return cls.BluetoothInterface.send_msg(msg)
 
-    def receive_messages():
+    def receive_messages(cls, *args, **kwargs):
         """Get the incoming messages from the android app
         are the messages stored in some buffer?
         does this function return messages from the buffer?
@@ -65,7 +65,7 @@ class UserInputInterface:
             if strings_match(key, 'test'):
                 cls.handle_test_string(msg_val)
             elif strings_match(key, 'move'):
-                cls.handle_move(msg_val)
+                RobotInterface.handle_move(msg_val)
             elif strings_match(key, 'arena'):
                 RobotController.Pathfinder.add_or_update_obstacle(msg_val)
             elif strings_match(key, 'start_location'):
@@ -201,6 +201,7 @@ def wait():
 
 
 def main():
+    # start up script to ensure all connections are active
     bt_server = UserInputInterface.open_connection()
     while not bt_server.connection_established():
         wait()
@@ -217,13 +218,15 @@ def main():
 
     manager = multiprocessing.Manager()
 
-    user_messages = manager.Queue()
-    flags = manager.dict({'pathfind_running': True})
+    messages_from_android = manager.Queue()
+    flags = manager.dict({
+        'pathfind_running': True
+        })
 
     pool = multiprocessing.Pool()
 
-    UI_result = pool.apply_async(UserInputInterface.receive_messages, args=(user_messages, flags))
-    resul2 = pool.apply_async(message_sender, args=(flags))
+    android_handler_process = pool.apply_async(UserInputInterface.receive_messages, args=(messages_from_android, flags))
+    stm_handler_process     = pool.apply_async(RobotController.start_processing, arg=())
 
 if __name__ == "__main__":
     pass
