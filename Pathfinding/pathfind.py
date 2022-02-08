@@ -15,6 +15,11 @@ class Node:
 
 class Pathfinder:
     @staticmethod
+    def get_path_between_points(target_list: list):
+        pass
+
+class Pathfinder2:
+    @staticmethod
     def get_path_between_points(node_list: typing.List[Node], obstacles: list):
         '''	
         Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
@@ -156,8 +161,7 @@ class Pathfinder:
 
             # determine total absolute distance from source to target
             diagonal_distance = sqrt(2*(longest_diagonal_1d_length**2))
-            straight_line_dist_remaining = max(
-                dist_x, dist_y) - longest_diagonal_1d_length
+            straight_line_dist_remaining = max(dist_x, dist_y) - longest_diagonal_1d_length
             total_distance = diagonal_distance + straight_line_dist_remaining
 
             # find the (x,y) coordinates of each step along the diagonal
