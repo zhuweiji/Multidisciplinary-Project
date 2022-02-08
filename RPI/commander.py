@@ -14,9 +14,11 @@ RPI is server
 import multiprocessing
 import time
 from .Image_Recognition import detectV2
+import bluetooth-test
+import rpi_camera_stream
 
 def open_bluetooth_server():
-    pass
+    
 
 def send_bluetooth_msg_to_android():
     pass
@@ -25,7 +27,7 @@ def send_msg_to_STM():
     pass
 
 def call_image_recognition():
-    pass
+    return detectV2.main()
 
 def get_screenshot():
     pass
