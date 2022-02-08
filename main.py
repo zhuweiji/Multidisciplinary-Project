@@ -206,27 +206,26 @@ def main():
     while not bt_server.connection_established():
         wait()
 
-    resp = RobotInterface.send_msg_to_STM()
-    if not resp:
-        # some error message to android to see what to do next - quit or retry
-        UserInputInterface.send_msg('no connection')
-        while not bt_server.recieve_message():
-            wait()
+    sr_link = RobotInterface.open_connection()
+    while not sr_link.connection_established():
+        wait()
 
     RobotInterface.config_STM_on_current_settings()
 
+    # CODE TO ADD NOW
+    
 
-    manager = multiprocessing.Manager()
+    # manager = multiprocessing.Manager()
 
-    messages_from_android = manager.Queue()
-    flags = manager.dict({
-        'pathfind_running': True
-        })
+    # messages_from_android = manager.Queue()
+    # flags = manager.dict({
+    #     'pathfind_running': True
+    #     })
 
-    pool = multiprocessing.Pool()
+    # pool = multiprocessing.Pool()
 
-    android_handler_process = pool.apply_async(UserInputInterface.receive_messages, args=(messages_from_android, flags))
-    stm_handler_process     = pool.apply_async(RobotController.start_processing, arg=())
+    # android_handler_process = pool.apply_async(UserInputInterface.receive_messages, args=(messages_from_android, flags))
+    # stm_handler_process     = pool.apply_async(RobotController.start_processing, arg=())
 
 if __name__ == "__main__":
     pass
