@@ -13,44 +13,91 @@ RPI is server
 
 import multiprocessing
 import time
+
 from .Image_Recognition import detectV2
-import bluetooth-test
+import bluetooth_test
 import rpi_camera_stream
 
-def open_bluetooth_server():
+
+class UserInputInterface:
+    @classmethod
+    def open_connection(cls):
+        return cls.BluetoothInterface.open_bluetooth_server();
     
+    def send_msg(cls, msg):
+        return cls.BluetoothInterface.send_msg(msg)
 
-def send_bluetooth_msg_to_android():
-    pass
+    def receive_messages():
+        pass
 
-def send_msg_to_STM():
-    pass
+    class BluetoothInterface:
+        def open_bluetooth_server():
+            pass
 
-def call_image_recognition():
-    return detectV2.main()
+        def send_bluetooth_msg_to_android():
+            pass
 
-def get_screenshot():
-    pass
 
-def algo_pathfinding():
-    pass
+class RobotControllerInterface:
+    def send_msg_to_STM():
+        pass
 
-def stm_config():
+    def config_STM_on_current_settings():
+        """ Use the 2 mins given at the start to configure the STM to the current battery levels, motor power etc."""
+        pass
+
+
+class ImageRecognizer:
+
+    def get_screenshot():
+        pass
+
+    def call_image_recognition():
+        return detectV2.main()
+
+
+class RobotController:
+    class Pathfinder:
+        def algo_pathfinding():
+            pass
+
+    @classmethod
+    def translate_message_to_movement(cls, message_buffer):
+        message = message_buffer.get()
+        MOVE_UP    = ''
+        MOVE_LEFT  = ''
+        MOVE_RIGHT = ''
+        MOVE_DOWN  = ''
+        if message == MOVE_UP:
+            pass
+        ...
+
+
+def wait():
     pass
 
 
 def main():
-    bt = open_bluetooth_server()
-    # resp = bt.test_connection()
+    bt_server = UserInputInterface.open_connection()
+    while not bt_server.connection_established():
+        wait()
 
-    resp = send_msg_to_STM();
-    # stm_config()
+    resp = RobotControllerInterface.send_msg_to_STM()
+    if not resp:
+        # some error message to android to see what to do next - quit or retry
+        UserInputInterface.send_msg('no connection')
+        while not bt_server.recieve_message():
+            wait()
+
+    RobotControllerInterface.config_STM_on_current_settings()
 
 
-    # manager = multiprocessing.Manager()
-    # flags = manager.dict({'pathfind_running': True})
+    manager = multiprocessing.Manager()
 
-    # pool = multiprocessing.Pool()
+    user_messages = manager.Queue()
+    flags = manager.dict({'pathfind_running': True})
 
-    # result1 = pool.apply_async(process_forever, args=(image_buffer, flags))
-    # resul2 = pool.apply_async(message_sender, args=(message_list, image_buffer, flags))
+    pool = multiprocessing.Pool()
+
+    UI_result = pool.apply_async(UserInputInterface.receive_messages, args=(user_messages, flags))
+    resul2 = pool.apply_async(message_sender, args=(flags))
