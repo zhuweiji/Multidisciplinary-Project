@@ -25,7 +25,6 @@ from RPI import rpi_camera_stream
 
 logging.basicConfig(level=logging.DEBUG)
 
-
 class UserInputInterface:
     @classmethod
     def open_connection(cls):
@@ -78,16 +77,8 @@ class UserInputInterface:
                 logging.debug(f'Key {key} in command from Android app not recognised')
 
 
-    def handle_move(cls, command:str):
-        if cls.handle_move_command(command):
-            pass
-        else:
-            return -1
-
-
     def handle_test_string(string: str):
         pass
-
 
     class BluetoothInterface:
         def open_bluetooth_server():
@@ -119,18 +110,18 @@ class RobotInterface:
         command = command.upper().strip()
         if command in cls.valid_commands:
             if command ==  cls.ValidCommands.FORWARD:
-                pass
+                cls.move_forward()
             elif command ==  cls.ValidCommands.REVERSE:
-                pass
+                cls.move_reverse()
             elif command ==  cls.ValidCommands.LEFT:
-                pass
+                cls.move_left()
             elif command ==  cls.ValidCommands.RIGHT:
-                pass
+                cls.move_right()
         else:
             return False
 
 
-    def move_up(cls):
+    def move_forward(cls):
         # data format not finalized
         data = {
             'move': 'up'
@@ -153,43 +144,11 @@ class RobotInterface:
 
 
 class ImageRecognizer:
-
-    def get_screenshot():
+    def get_image_from_camera():
         pass
 
     def call_image_recognition():
         return detect_V2.main()
-
-
-class RobotController:
-    class Pathfinder:
-        obstacles = []
-
-        @dataclass
-        class Coords:
-            x: int
-            y: int
-
-        @dataclass
-        class Obstacle:
-            coords: Coords
-            id: int
-            image_loc: str
-            
-
-        def algo_pathfinding():
-            pass
-
-    @classmethod
-    def translate_message_to_movement(cls, message_buffer):
-        message = message_buffer.get()
-        MOVE_UP    = ''
-        MOVE_LEFT  = ''
-        MOVE_RIGHT = ''
-        MOVE_DOWN  = ''
-        if message == MOVE_UP:
-            RobotInterface.move_up()
-        ...
 
 
 def strings_match(str1:str, str2:str):
