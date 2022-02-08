@@ -16,7 +16,7 @@ Android -> RPI
 -------------
 contents:
 {
-    'move': str enum LEFT/RIGHT/FORWARD
+    'move': str enum LEFT/RIGHT/FORWARD/REVERSE
 }
 
 ================================================================
@@ -35,7 +35,7 @@ contents:
         },
     },
     'start_location': (x<int>, y<int>),
-    'target_location': (x<int>, y<int>),
+    'final_location': (x<int>, y<int>),
     'path': [(x,y), ]
 }
 

@@ -2,3 +2,4 @@
 *_pycache_/
 Pathfinding/__pycache__/pathfind.cpython-310.pyc
 .venv/
+*Python3.7/
