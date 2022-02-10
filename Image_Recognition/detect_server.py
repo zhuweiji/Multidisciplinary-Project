@@ -40,6 +40,8 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+
+
 from models.common import DetectMultiBackend
 from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr, is_ascii,
@@ -87,23 +89,24 @@ class DetectServer:
         self.augment = augment
         self.classes = None
         self.visualize = visualize
-
+        print("AAA", ROOT)
         #source = str("C:/Users/micha/OneDrive/Desktop/PRED/content/PRED")
         weights_src = ROOT / "best.pt"
         data_src = ROOT /"data/coco128.yaml"
         self.conf_thresh = 0.4
         self.save_folder = ROOT / "collage_actual"
         self.iou_thres=0.45
+        self.half = half
         
         # Load model
         self.device = select_device(device)
-        self.model = DetectMultiBackend(weights_src, device=device, dnn=dnn, data=data_src)
+        self.model = DetectMultiBackend(weights_src, device=self.device, dnn=dnn, data=data_src)
 
         stride, self.names, pt, jit, onnx, engine = self.model.stride, self.model.names, self.model.pt, self.model.jit, self.model.onnx, self.model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
 
         # Half
-        self.half &= (pt or jit or onnx or engine) and device.type != 'cpu'  # FP16 supported on limited backends with CUDA
+        self.half &= (pt or jit or onnx or engine) and self.device.type != 'cpu'  # FP16 supported on limited backends with CUDA
         if pt or jit:
             self.model.model.half() if half else self.model.model.float()
 
@@ -202,7 +205,8 @@ if __name__ == "__main__":
    
 
     # Test 1
-    image_numpy = cv2.imread("C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/detect_this.jpg")
+    
+    image_numpy = cv2.imread("C:/Users/Michael/Desktop/PRED/PRED/content/PRED/pic1.jpg")
 
     server = DetectServer()
     server.detect(image_numpy)
