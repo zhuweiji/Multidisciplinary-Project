@@ -14,6 +14,7 @@ class ImageClient:
         while True:
             data = recv_msg(self.socket)
             img = cv2.imdecode(np.fromstring(data, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+            cv2.imwrite("recv_imgs/1.jpg", img)
             self.recv_callback(img)
             
 
