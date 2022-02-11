@@ -31,6 +31,32 @@ class Robot:
         self._facing = value
 
 
+global_LOADER_VAL = 0
+def progress_display(log_every:int=10000, total_count:int=None, logger_type=True):
+    """Helper function to display a message every {log_every} iterations"""
+    index = 0
+
+    def display_updater():
+        if logger_type:
+            nonlocal index
+            index+=1
+            if index % log_every == 0:
+                print(f'{index}           \r', end=' ') 
+        else:
+            global global_LOADER_VAL
+            global_LOADER_VAL += 1
+            if global_LOADER_VAL % 4001 == 0:
+                print('/             \r', end=' ')
+            elif global_LOADER_VAL % 7001 == 0:
+                print('|             \r', end=' ')
+            elif global_LOADER_VAL % 9001 == 0:
+                print('\             \r', end=' ')
+            elif global_LOADER_VAL % 10001 == 0:
+                print('&             \r', end=' ')
+            
+    return display_updater
+
+
 class Pathfinder:
     obstacle_size = '2x2'
     robot_size = '3x3'
@@ -119,6 +145,17 @@ class Pathfinder:
         return result
 
     @classmethod
+    def get_poor_path_between_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list):
+        temp_result = []    
+        path = [start_node, *node_list]
+
+        _ = cls.get_path_between_points(path, obstacles)
+        temp_result.append((_['path'], _['distance']))
+
+        path, distance = sorted(temp_result, key=lambda x: x[1])[0]
+        return {'path': path, 'distance': distance}
+
+    @classmethod
     def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list):
         sx, sy = cls.extract_pos(start)
         ex, ey = cls.extract_pos(target)
@@ -141,7 +178,9 @@ class Pathfinder:
             'LEFT':  (-1,0)
         }
 
+        display = progress_display(logger_type=False)
         while True:
+            display()
             cost, (current_x, current_y), path_to_current = heapq.heappop(queue)
             memo_key = (current_x, current_y)
 

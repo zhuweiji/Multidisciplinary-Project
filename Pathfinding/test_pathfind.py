@@ -1,5 +1,5 @@
 # from pathfind import Pathfinder, Node
-from pathfind import Pathfinder 
+from pathfind import Pathfinder
 from GUI_temp import TempGUI
 import pytest
 
@@ -15,39 +15,16 @@ class TestPathfinder:
 
     @staticmethod
     def test_calculate_shortest_path():
-        nodes = [Node(3, 5), Node(6, 7), Node(2, 9), Node(18, 6)]
-        res = Pathfinder.get_path(nodes)
-
-def progress_display(log_every:int=10000,total_count:int=None):
-    """Helper function to display a message every {log_every} iterations"""
-    index = 0
-    def display_updater():
-        nonlocal index
-        index+=1
-        if index % log_every == 0:
-            print(f'{index}           \r', end=' ')
-    return display_updater
+        # nodes = [Node(3, 5), Node(6, 7), Node(2, 9), Node(18, 6)]
+        # res = Pathfinder.get_path(nodes)
+        pass
 
 
 if __name__ == "__main__":
-    # nodes = [Node(3, 5), Node(6, 7), Node(2, 9), Node(18, 0)]
     start, end = (0,0), (10,10)
 
-    # test case 1
-    # obstacles = []
-
-    # test case 2
-    # obstacles = [(5+x, 8+y) for x,y in [(1, 0), (0, 1), (0, -1), (-1, 0), (1,1), (-1,-1), (-1,1), (1,-1)]]
-    
-    # test case 3
-    # obstacles = [(5+x, 8+y) for x, y in [(1, 0), (0, 1), (0, -1), (-1, 0), (1, 1), (-1, -1), (-1, 1), (1, -1)]]
-    # obstacles = [*obstacles, *[(5+x, 5+y) for x, y in [(1, 0), (0, 1), (0, -1), (-1, 0), (1, 1), (-1, -1), (-1, 1), (1, -1)]]]
-
-    # test case 4
-    # obstacles = [(4, 7), (4, 8), (5, 7), (5, 8), (2,8), (3,9), (0,9), (9,6)]
-
-    # test case 5
-    targets = [(5,4), (10,5), (15,9), (8,15), (18,18)]
+    # target 1
+    targets = [(5,14), (10,5), (15,3), (2,10), (18,18)]
     
     import random
 
@@ -63,21 +40,33 @@ if __name__ == "__main__":
         else:
             obstacles = [*obstacles, *[(target[0]+x, target[1]+y) for x in [1,2] for y in [1,0,-1]]]
 
-    res = Pathfinder.shortest_path_to_n_points(start, targets, obstacles=obstacles)
-    # print(obstacles)
-    path = [item for sublist in res['path'] for item in sublist]
-    TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles)
+    user_input = input('1. Plot obstacles, images, and start location\n2. Plot shortest path to 5 images\n3. Plot non-optimal path to 5 images\n')
 
-    # start = (0,0)
-    # targets = [(5,13)]
-    # target = targets[0]
-    # obstacles = []
+    if user_input == '1':
+        TempGUI.plot_targets_and_path([start, *targets], [], obstacles=obstacles, real_time=True)
+    elif user_input == '2':
+        print('finding shortest path now...')
+        res = Pathfinder.shortest_path_to_n_points(start, targets, obstacles=obstacles)
+        print('\r              ')
+        from pathfind import global_LOADER_VAL
+        print('pathfinding completed successfully')
+        path = [item for sublist in res['path'] for item in sublist]
+        print(f'Number of iterations: {global_LOADER_VAL}')
+        print(f'Path taken: {len(path)} steps')
+        TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles, real_time=True)
+    elif user_input == '3':
+        print('finding a non-optimal path now...')
+        res = Pathfinder.get_poor_path_between_n_points(start, targets, obstacles=obstacles)
+        print('\r              ')
+        from pathfind import global_LOADER_VAL
+        print('pathfinding completed successfully')
+        path = [item for sublist in res['path'] for item in sublist]
+        print(f'Number of iterations: {global_LOADER_VAL}')
+        print(f'Path taken: {len(path)} steps')
+        TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles, real_time=True)
+    else:
+        print('input not recognised')
 
-    # import time
-    # s = time.perf_counter()
-    # path, cost = Pathfinder.get_path_between_two_points(start, target, obstacles)
-    # e = time.perf_counter()
+    exit(1)
 
-    # print(path)
-    # print(cost)
-    # TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles)
+
