@@ -3,3 +3,6 @@
 Pathfinding/__pycache__/pathfind.cpython-310.pyc
 .venv/
 *Python3.7/
+
+STM/**/Debug
+STM/**/Release
