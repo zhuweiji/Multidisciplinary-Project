@@ -2,23 +2,21 @@
 A simple test server that returns a random number when sent the text "temp" via Bluetooth serial.
 """
 import threading
-import enum
+from connection_state import ConnectionState
 
 from bluetooth import *
-
-class ConnectionState(enum.Enum):
-    STARTUP = 0
-    CONNECTED = 1
-    DISCONNECTED = 2
+import queue
 
 class BluetoothServer:
 
-    def __init__(self, recv_callback) -> None:
+    def __init__(self, recv_callback=lambda x: None) -> None:
         self._state = ConnectionState.STARTUP
         self._socket = BluetoothSocket(RFCOMM)
         self._socket.bind(("", PORT_ANY))
         self._socket.listen(1)
         self.client_sock = None
+
+        self.send_queue = queue.Queue()
 
         self.recv_callback = recv_callback
 
@@ -32,11 +30,28 @@ class BluetoothServer:
             profiles=[SERIAL_PORT_PROFILE],
         )
 
+    def _queue_loop(self):
+        while True:
+            msg = self.send_queue.get()
+            self._send(msg)
+            
     def run(self):
-        t = threading.Thread(target=self._server_loop)
-        t.start()
+        threading.Thread(target=self._queue_loop).start()
+        threading.Thread(target=self._server_loop).start()
         print("Started...")
-        
+
+    def _send(self, msg):
+        if self._state == ConnectionState.CONNECTED:
+            try:
+                self.client_sock.send(msg)
+
+            except IOError:
+                print("disconnected")
+                self._state = ConnectionState.DISCONNECTED
+
+    def send(self, msg):
+        self.send_queue.put(msg)
+
     def _server_loop(self):
         while True:
             if self._state == ConnectionState.STARTUP or self._state == ConnectionState.DISCONNECTED:
@@ -59,14 +74,12 @@ class BluetoothServer:
                     print("disconnected")
                     self._state = ConnectionState.DISCONNECTED
 
-                except KeyboardInterrupt:
-                    print("disconnected")
-                    break
             else:
                 raise RuntimeError("Unknown state")
 
         
 if __name__ == "__main__":
     b = BluetoothServer(lambda x: print(x))
+    b.recv_callback = lambda x: b.send(x)
     b.run()
 
