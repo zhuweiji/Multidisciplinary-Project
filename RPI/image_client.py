@@ -5,17 +5,16 @@ import numpy as np
 
 class ImageClient:
 
-    def __init__(self, addr, port):
+    def __init__(self, addr, port, recv_callback=lambda x:None):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((addr, port))
+        self.recv_callback = recv_callback
 
     def loop(self):
         while True:
             data = recv_msg(self.socket)
-            print(len(data))
             img = cv2.imdecode(np.fromstring(data, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-            cv2.imshow("img", img)
-            cv2.waitKey(0)
+            self.recv_callback(img)
             
 
     def send(self, msg):
