@@ -58,8 +58,8 @@ def progress_display(log_every:int=10000, total_count:int=None, logger_type=True
 
 
 class Pathfinder:
-    obstacle_size = '2x2'
-    robot_size = '3x3'
+    OBSTACLE_SIZE = (1,1)
+    ROBOT_SIZE = (3,3)
     ARENA_SIZE = (19,19)
 
     @classmethod
@@ -145,17 +145,6 @@ class Pathfinder:
         return result
 
     @classmethod
-    def get_poor_path_between_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list):
-        temp_result = []    
-        path = [start_node, *node_list]
-
-        _ = cls.get_path_between_points(path, obstacles)
-        temp_result.append((_['path'], _['distance']))
-
-        path, distance = sorted(temp_result, key=lambda x: x[1])[0]
-        return {'path': path, 'distance': distance}
-
-    @classmethod
     def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list):
         sx, sy = cls.extract_pos(start)
         ex, ey = cls.extract_pos(target)
@@ -178,9 +167,14 @@ class Pathfinder:
             'LEFT':  (-1,0)
         }
 
-        display = progress_display(logger_type=False)
+        # obstacle location
+        # robot location
+
+        logger = progress_display(logger_type=False)
+        assert cls.ROBOT_SIZE == (3,3)
+        assert cls.OBSTACLE_SIZE == (1,1)
+
         while True:
-            display()
             cost, (current_x, current_y), path_to_current = heapq.heappop(queue)
             memo_key = (current_x, current_y)
 
@@ -192,7 +186,9 @@ class Pathfinder:
             
             next_moves =  [(current_x+dx,current_y+dy) for dx,dy in moveset.values()]
             for x,y in next_moves:
-                if (x,y) in obstacles or cls.points_are_out_of_bounds(x,y):
+                occupied_by_robot = [(x+dx,y+dy) for dx,dy in [(1,0), (0,1), (-1,0), (0,-1),(1,1),(-1,-1)]]
+                if any([i in obstacles for i in occupied_by_robot]) or cls.points_are_out_of_bounds(x, y):
+                # if (x, y) in obstacles or cls.points_are_out_of_bounds(x, y):
                     continue
 
                 next_cost = h(x,y) + g(path_to_current)
@@ -200,7 +196,20 @@ class Pathfinder:
                 heapq.heappush(queue,(next_cost, (x,y), path_to_next))
 
             memo[memo_key] = True
+            logger()
 
+
+    @classmethod
+    def get_poor_path_between_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list):
+        temp_result = []    
+        path = [start_node, *node_list]
+
+        _ = cls.get_path_between_points(path, obstacles)
+        temp_result.append((_['path'], _['distance']))
+
+        path, distance = sorted(temp_result, key=lambda x: x[1])[0]
+        return {'path': path, 'distance': distance}
+        
     @classmethod
     def check_if_robot_is_in_obstacle(self, robot_location:Node, obstacle:list):
         # robot_locations_to_check = [robot_location[0], robot_location[1] for x,y in [(0,1), (1,0), (1,1), (-1,0),(0,-1),(-1,-1)]]

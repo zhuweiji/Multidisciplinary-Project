@@ -1,7 +1,7 @@
 from pathfind import Node
 
 class TempGUI:
-    def plot_targets_and_path(targets: list, path: list, obstacles: list = [], real_time=False):
+    def plot_targets_and_path(targets: list, path: list, obstacles: list = [], real_time=False, delay=0.5):
         import matplotlib.pyplot as plt
 
         def get_x(node):
@@ -37,10 +37,10 @@ class TempGUI:
             plt.scatter(x, y, color='b')
             
             if real_time:
-                plt.pause(0.5)
+                plt.pause(delay)
                 if (x,y) in list(zip(targets_x, targets_y)):
                     plt.scatter(x, y, color='y')
-                    plt.pause(0.5)
+                    plt.pause(delay*1.5)
 
         # ax.yaxis.get_major_locator().set_params(integer=True)
         plt.show()
