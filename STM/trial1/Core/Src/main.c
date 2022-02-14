@@ -249,7 +249,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 160;
+  htim1.Init.Prescaler = 320;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 1000;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -552,38 +552,42 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_motors */
 void motors(void *argument)
 {
-	int value = 80;
-	int t = 0;
+//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+//	for(;;) {
+//		htim1.Instance->CCR4 = 110; //82
+//		osDelay(2000);
+//		htim1.Instance->CCR4 = 74; //72
+//		osDelay(2000);
+//		htim1.Instance->CCR4 = 44; //62
+//		osDelay(2000);
+//		htim1.Instance->CCR4 = 74; //62
+//		osDelay(2000);
+//	}
+
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-	for(;;) {
-//		switch (t){
-//			case 0:
-//				value = 82;
-//				break;
-//			case 1:
-//				value = 72;
-//				break;
-//			case 2:
-//				value = 62;
-//				break;
-//			case 3:
-//				value = 72;
-//				break;
-//			default:
-//				break;
-//		}
-//		t = (t+1)%4;
-//		htim1.Instance->CCR4 = value;
-//		osDelay(10000);
-		htim1.Instance->CCR4 = 82;
-		osDelay(2000);
-		htim1.Instance->CCR4 = 72;
-		osDelay(2000);
-		htim1.Instance->CCR4 = 62;
-		osDelay(2000);
-		htim1.Instance->CCR4 = 72;
-		osDelay(2000);
-	}
+
+	//right turn
+	htim1.Instance->CCR4 = 74;
+	osDelay(500);
+	htim1.Instance->CCR4 = 120;
+	uint16_t pwmVal = 6000;
+	uint16_t pwmVal_2 = 0;
+
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+	osDelay(650); // set this to change the angle of turn
+	pwmVal = 0;
+	pwmVal_2 = 0;
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+	htim1.Instance->CCR4 = 74;
+
 
   /* USER CODE BEGIN motors */
 //  uint16_t pwmVal = 6000;
