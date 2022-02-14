@@ -1,7 +1,7 @@
 from pathfind import Node
 
 class TempGUI:
-    def plot_targets_and_path(targets: list, path: list, obstacles: list = []):
+    def plot_targets_and_path(targets: list, path: list, obstacles: list = [], real_time=False, delay=0.5):
         import matplotlib.pyplot as plt
 
         def get_x(node):
@@ -16,29 +16,33 @@ class TempGUI:
             else:
                 return node[1]
 
-        ax = plt.figure().gca()
+        plt.xticks([i for i in range(0, 20)])
+        plt.yticks([i for i in range(0, 20)])
+        plt.grid(True)
 
-        path_x = [get_x(node) for node in path]
-        path_y = [get_y(node) for node in path]
-
-        plt.scatter(path_x, path_y, color='b')
-
-        targets_x = [get_x(target) for target in targets]
-        targets_y = [get_y(target) for target in targets]
+        targets_x = [get_x(target)+0.5 for target in targets]
+        targets_y = [get_y(target)+0.5 for target in targets]
 
         plt.scatter(targets_x, targets_y, color='g')
         for i in range(len(targets)):
             plt.annotate(i, (targets_x[i], targets_y[i]))
 
-        obs_x = [get_x(obs) for obs in obstacles]
-        obs_y = [get_y(obs) for obs in obstacles]
+        obs_x = [get_x(obs)+0.5 for obs in obstacles]
+        obs_y = [get_y(obs)+0.5 for obs in obstacles]
         plt.scatter(obs_x, obs_y, color='r')
 
-        biggest_x, biggest_y = max(max(path_x), max(targets_x)),  max(max(path_y), max(targets_y))
-        smallest_x, smallest_y = min(min(path_x), max(targets_x)), min(min(path_y), min(targets_y))
+        path_x = [get_x(node)+0.5 for node in path]
+        path_y = [get_y(node)+0.5 for node in path]
+        
+        for x,y in zip(path_x,path_y):
+            plt.scatter(x, y, color='b')
+            
+            if real_time:
+                plt.pause(delay)
+            if (x,y) in list(zip(targets_x, targets_y)):
+                plt.scatter(x, y, color='y')
+                if real_time:
+                    plt.pause(delay*1.5)
 
-        plt.xticks([i for i in range(smallest_x-3, biggest_x+3)])
-        plt.yticks([i for i in range(smallest_y-3, biggest_y+3)])
-        plt.grid(True)
         # ax.yaxis.get_major_locator().set_params(integer=True)
         plt.show()
