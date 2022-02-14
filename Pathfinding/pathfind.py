@@ -190,9 +190,10 @@ class Pathfinder:
         # g = lambda path: len(path)
         g = lambda path: sum(Pathfinder.h_function(x,y,ex,ey) for (x,y) in path)
 
-        #TODO next move should be forward,up,down,left,right etc instead of up down,
+        # TODO make navigating within standoff zone some kind of parking function
         # TODO make pathfinding faster
-        
+        #TODO next move should be forward,up,down,left,right etc instead of up down,
+
         moveset = {
             'UP':              (0,1), 
             'DOWN':            (0,-1), 
