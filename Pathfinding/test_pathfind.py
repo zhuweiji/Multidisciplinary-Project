@@ -24,27 +24,39 @@ if __name__ == "__main__":
     start, end = (0,0), (10,10)
 
     # target 1
-    targets = [(5,14), (10,5), (15,3), (2,10), (18,18)]
+    obstacles = [(5, 14), (10, 5), (15, 3), (2, 10), (18, 16)]
     
     ROBOT_DIST_FROM_IMG = 2
     import random
 
-    obstacles = []
-    for target in targets:
+    targets = []
+    for image in obstacles:
         img_direction = random.choice(['N','S','E','W'])
+        x, y = image
         if img_direction == 'N':
-            obstacles = [(0+x, ROBOT_DIST_FROM_IMG+y) for (x, y) in targets]
+            targets.append((0+x, ROBOT_DIST_FROM_IMG+y))
             # obstacles = [*obstacles, *[(target[0]+x, target[1]+y) for x in [1,0,-1] for y in [1,2]]]
         elif img_direction == 'S':
-            obstacles = [(0+x, -ROBOT_DIST_FROM_IMG+y) for (x, y) in targets]
+            targets.append((0+x, -ROBOT_DIST_FROM_IMG+y))
             # obstacles = [*obstacles, *[(target[0]+x, target[1]+y) for x in [1,0,-1] for y in [-1,-2]]]
         elif img_direction == 'W':
-            obstacles = [(-ROBOT_DIST_FROM_IMG+x, 0+y) for (x, y) in targets]
+            targets.append((-ROBOT_DIST_FROM_IMG+x, 0+y))
             # obstacles = [*obstacles, *[(target[0]+x, target[1]+y) for x in [-1,-2] for y in [1,0,-1]]]
         else:
-            obstacles = [(ROBOT_DIST_FROM_IMG+x, 0+y) for (x, y) in targets]
+            targets.append((ROBOT_DIST_FROM_IMG+x, 0+y))
             # obstacles = [*obstacles, *[(target[0]+x, target[1]+y) for x in [1,2] for y in [1,0,-1]]]
 
+    def update_callback(message=None):
+        times_called = 0
+        def wrapped(call_message):
+            nonlocal times_called
+            times_called+=1
+            print(f'{message} {times_called}')
+            if call_message:
+                print(call_message)
+        return wrapped
+
+    points_completed_updater = update_callback(f'Pathfinding completed for point')
 
     # user_input = input('1. Plot obstacles, images, and start location\n2. Plot shortest path to 5 images\n3. Plot non-optimal path to 5 images\n')
     # if user_input == '1':
@@ -72,16 +84,32 @@ if __name__ == "__main__":
     # else:
     #     print('input not recognised')
 
-    print('finding shortest path now...')
+    targets = [(3, 14), (12, 5), (15, 5), (2, 8), (20, 16)]
+    obstacles = [(5, 14), (10, 5), (15, 3), (2, 10), (18, 16)]
+    
+    TempGUI.plot_targets_and_path([start, *targets], [], obstacles=obstacles, real_time=True)
+
+
+    print('================================================================')
+    print(f'{targets=}')
+    print(f'{obstacles=}')
+
+    facing_directions = Pathfinder.find_facing_directions(targets, obstacles)
     res = Pathfinder.shortest_path_to_n_points(
-        start, targets, obstacles=obstacles)
-    print('\r              ')
-    from pathfind import global_LOADER_VAL
-    print('pathfinding completed successfully')
-    path = [item for sublist in res['path'] for item in sublist]
-    print(f'Number of iterations: {global_LOADER_VAL}')
-    print(f'Path taken: {len(path)} steps')
-    TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles, real_time=True, delay=0.1)
+        start, targets, facing_direction_for_node_list=facing_directions, obstacles=obstacles, update_callback=points_completed_updater)
+
+    path = Pathfinder.flatten_output(res['path'])
+
+    print(f'\n{path=}\n')
+    print(instructions := Pathfinder.convert_path_to_instructions(path))
+
+    TempGUI.plot_targets_and_path([start, *targets], path, obstacles=obstacles, real_time=True, delay=0.2)
+
+    # facing_directions = Pathfinder.find_facing_directions(targets, obstacles)
+    # res = Pathfinder.get_path_between_two_points(start, targets[0], obstacles, facing_directions[0])
+
+    # TempGUI.plot_targets_and_path([start, *targets], res['path'], obstacles=obstacles, real_time=True, delay=0.4)
+
 
     exit(1)
 

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 import itertools
 import math
+from re import T
 import typing
 import heapq
 
@@ -63,7 +64,7 @@ class Pathfinder:
     ARENA_SIZE = (19,19)
 
     @classmethod
-    def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list):
+    def get_path_between_points(cls, node_list: typing.List[Node], facing_direction_for_node_list: typing.List[str], obstacles: list, update_callback=None):
         '''	
         Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
         
@@ -71,29 +72,36 @@ class Pathfinder:
         ----------
         node_list: List(Nodes)
             The nodes to travel to, in the order of travel
+        facing_direction_for_node_list: List(str)
+            List of direction that the agent should be facing at each target node
         obstacles: List(Nodes or Tuples) - mixed Tuple and Nodes are allowed
             A list of the location of obstacles, of which travel on is prohibited
 
         Returns
         -------
         {
-            'path': List(Tuples)
+            'path': List of n List(Tuples), for n targets
             'distance': int
         }
         '''
 
         total_path, total_distance = [], 0
-
+        if len(facing_direction_for_node_list) == len(node_list):
+            raise ValueError('List of facing directions should be one less than the list of target nodes, because there is no target direction at the first node')
+        
+        facing_direction_at_end = None
         for i in range(len(node_list)-1):
             start_node, end_node = node_list[i], node_list[i+1]
-            res = Pathfinder.get_path_between_two_points(start_node, end_node, obstacles)
+            if facing_direction_for_node_list:
+                facing_direction_at_end = facing_direction_for_node_list[i]
+            res = Pathfinder.get_path_between_two_points(start_node, end_node, obstacles, facing_direction_at_end, update_callback)
             total_path.append(res['path'])
             total_distance += res['distance']
 
         return {'path': total_path, 'distance': total_distance}
 
     @classmethod
-    def shortest_path_to_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list):    
+    def shortest_path_to_n_points(cls, start_node: Node, node_list: typing.List[Node], facing_direction_for_node_list: typing.List[str], obstacles: list, approximate=True, update_callback=None):
         '''	
         Given a unordered list of nodes, and a starting location, try to find the shortest path that will travel to all of the given nodes
         
@@ -103,35 +111,51 @@ class Pathfinder:
             The starting node from which the path will be started on the given
         node_list: List(Node)
             An unordered list of target nodes which will be visited. The order of visting is not guaranteed to be the same as the order in the list
+        facing_direction_for_node_list: List(str)
+            List of direction that the agent should be facing at each target node
         obstacles: List(Tuple or Node)
             A list of the location of obstacles, of which travel on is prohibited
 
         Returns
         -------
         {
-            'path': List(Tuples)
+            'path': List of n List(Tuples), for n targets
             'distance': int
         }
         '''
-        result = {}
         if len(node_list) == 0:
             raise ValueError('Cannot find path if there are no target nodes')
 
-        if len(node_list) <= 5:
+        if len(node_list) <= 3 or not approximate:
             temp_result = []
             all_paths = list(itertools.permutations(node_list))
             all_paths = [(start_node, *path) for path in all_paths]
 
             for path in all_paths:
-                _ = cls.get_path_between_points(path, obstacles)
+                _ = cls.get_path_between_points(path, facing_direction_for_node_list, obstacles, update_callback)
                 temp_result.append((_['path'], _['distance']))
 
             path, distance = sorted(temp_result, key=lambda x: x[1])[0]
             return {'path': path, 'distance': distance}
 
         else:
-            # todo implement approximate TSP
-            return NotImplementedError
+            traversal_order = [start_node]
+            facing_direction_in_traversal_order = []
+            
+            current_node = start_node
+            node_list = node_list[:]
+            while node_list:
+                closest_node = sorted(node_list, key=lambda node:Pathfinder.h_function(*current_node, *node))[0]
+                traversal_order.append(closest_node)
+                facing_direction_in_traversal_order.append(facing_direction_for_node_list[node_list.index(closest_node)])
+                node_list.remove(closest_node)
+                current_node = closest_node
+
+            print(f'{traversal_order=}')
+            return cls.get_path_between_points(traversal_order, facing_direction_in_traversal_order, obstacles, update_callback)
+
+                    
+
             # remaining_nodes = node_list[:]
             # closest_node, shortest_path, shortest_distance = None, [], float('inf')
 
@@ -142,83 +166,142 @@ class Pathfinder:
             #         closest_node = node
             # remaining_nodes.remove(closest_node)
 
-        return result
 
     @classmethod
-    def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list):
+    def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list, direction_at_target=None, update_callback=None):
+        # distance from the target from which to stop marking visited nodes, 
+        # so that nodes can be explored more than once in order to find paths which lead to the corect facing direction
+        STAND_OFF_DISTANCE = 3
+
         sx, sy = cls.extract_pos(start)
         ex, ey = cls.extract_pos(target)
 
-        # heapqueue structure - total cost f, current location, path to location
-        queue = [(0,(sx,sy),[])]
+        # heapqueue structure - total cost f, current location, current_direction, path to location
+        queue = [(0,(sx,sy),'UP',[])]
 
-        memo = {}
+        visited = {}
 
         # estimator cost function from location to destination
-        h = lambda x1,y1: math.sqrt((x1-ex)**2 + (y1-ey)**2)
+        h = Pathfinder.h_function
 
         # evaluator function for cost of path travelled so far
-        g = lambda path: len(path) # extension point for if turning logic changes
+        # extension point for if turning logic changes
+        # g = lambda path: sum(1 if i == moveset['UP'] or i == moveset['DOWN'] else 1.7 for i in path)
+        # g = lambda path: len(path)
+        g = lambda path: sum(Pathfinder.h_function(x,y,ex,ey) for (x,y) in path)
 
+        #TODO next move should be forward,up,down,left,right etc instead of up down,
+        # TODO make pathfinding faster
+        
         moveset = {
-            'UP':    (0,1), 
-            'DOWN':  (0,-1), 
-            'RIGHT': (1,0), 
-            'LEFT':  (-1,0)
+            'UP':              (0,1), 
+            'DOWN':            (0,-1), 
+            'RIGHT_UP':        (1,1), 
+            'RIGHT_DOWN':      (1,-1),
+            'LEFT_UP':         (-1,1),
+            'LEFT_DOWN':       (-1,-1),
         }
-
-        # obstacle location
-        # robot location
 
         logger = progress_display(logger_type=False)
         assert cls.ROBOT_SIZE == (3,3)
         assert cls.OBSTACLE_SIZE == (1,1)
 
         while True:
-            cost, (current_x, current_y), path_to_current = heapq.heappop(queue)
+            cost, (current_x, current_y), current_direction, path_to_current = heapq.heappop(queue)
             memo_key = (current_x, current_y)
 
-            if current_x == ex and current_y == ey:
-                return {'path':path_to_current,'distance': cost}
-
-            if memo_key in memo:
+            if memo_key in visited:
                 continue
             
             next_moves =  [(current_x+dx,current_y+dy) for dx,dy in moveset.values()]
-            for x,y in next_moves:
-                occupied_by_robot = [(x+dx,y+dy) for dx,dy in [(1,0), (0,1), (-1,0), (0,-1),(1,1),(-1,-1)]]
+            for index,(x,y) in enumerate(next_moves):
+                occupied_by_robot = [(x+dx,y+dy) for dx,dy in [(0,0), (1,0), (0,1), (-1,0), (0,-1),(1,1),(-1,-1), (-1,1),(1,-1)]]
                 if any([i in obstacles for i in occupied_by_robot]) or cls.points_are_out_of_bounds(x, y):
-                # if (x, y) in obstacles or cls.points_are_out_of_bounds(x, y):
                     continue
 
-                next_cost = h(x,y) + g(path_to_current)
+                next_cost = h(x, y, ex, ey) + cost
                 path_to_next = [*path_to_current, (x,y)]
-                heapq.heappush(queue,(next_cost, (x,y), path_to_next))
+                next_direction = list(moveset.keys())[index]
 
-            memo[memo_key] = True
+                if 'RIGHT' in next_direction:
+                    next_direction = 'RIGHT'
+                elif 'LEFT' in next_direction:
+                    next_direction = 'LEFT'
+
+                if x == ex and y == ey:
+                    if next_direction == direction_at_target or not direction_at_target:
+                        if update_callback:
+                            update_callback(f'{next_direction}')
+                        return {'path': path_to_next, 'distance': next_cost}
+
+                heapq.heappush(queue, (next_cost, (x, y),next_direction, path_to_next))
+
+            if abs(current_x - ex) <= STAND_OFF_DISTANCE or abs(current_y - ey) <= STAND_OFF_DISTANCE:
+                pass
+            else:
+                visited[memo_key] = True
+
             logger()
-
-
-    @classmethod
-    def get_poor_path_between_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list):
-        temp_result = []    
-        path = [start_node, *node_list]
-
-        _ = cls.get_path_between_points(path, obstacles)
-        temp_result.append((_['path'], _['distance']))
-
-        path, distance = sorted(temp_result, key=lambda x: x[1])[0]
-        return {'path': path, 'distance': distance}
-        
-    @classmethod
-    def check_if_robot_is_in_obstacle(self, robot_location:Node, obstacle:list):
-        # robot_locations_to_check = [robot_location[0], robot_location[1] for x,y in [(0,1), (1,0), (1,1), (-1,0),(0,-1),(-1,-1)]]
-        pass
 
     @classmethod
     def points_are_out_of_bounds(cls, x,y):
         return x < 0 or y < 0 or x > cls.ARENA_SIZE[0] or y > cls.ARENA_SIZE[1]
 
+    @classmethod 
+    def find_facing_directions(cls, node_targets: list, node_obstacles: list):
+        '''	
+        Find the direction the agent should be facing for each node target
+        
+        
+        Parameters
+        ----------
+        node_targets: List(nodes or tuples)
+            list of target nodes to be visited, unordered
+        node_obstacles: List(nodes or tuples)
+            list of obstacles corresponding to the targets in node_targets
+        Returns
+        -------
+            facing_direction_list: List(FacingDirections)
+        '''
+        FACING_DIRECTIONS ={
+            (0, 1):  'UP',
+            (0, -1): 'DOWN',
+            (1, 0):  'RIGHT',
+            (-1, 0): 'LEFT',
+        }
+
+        compare_return_at_most_abs_1 = lambda x1,x2: 0 if x1==x2 else 1 if x1-x2 > 0 else -1
+        try:
+            return [FACING_DIRECTIONS[(compare_return_at_most_abs_1(ox, tx), compare_return_at_most_abs_1(oy,ty))]
+                for (tx, ty), (ox, oy) in zip(node_targets, node_obstacles)]
+        except KeyError as e:
+            raise ValueError('List of obstacles must be only one dimension (up,down,left or right) away from the target')
+
+    @classmethod
+    def h_function(cls,src_x,src_y,tgt_x,tgt_y):
+        """estimator cost function from location to destination"""
+        return math.sqrt((src_x-tgt_x)**2 + (src_y-tgt_y)**2)
+
+    @classmethod
+    def convert_path_to_instructions(cls, path):
+        """Path consists of atomic left and right turns, but robot can only move in (1,1) moves 
+        Function takes a path and converts to instructions usable by STM"""
+
+        if not isinstance(path, list) or len(path) == 1:
+            raise ValueError('path should in list format, and length of list should be greater than 1')
+        
+        if any(isinstance(i, list) for i in path):
+            path = cls.flatten_output(path)
+        
+        instructions = [(x-path[index][0], y-path[index][1]) for index,(x,y) in enumerate(path[1:])] # index is the previous value, since we enumerate from path[1:]
+
+        return instructions
+
+
+    @classmethod
+    def flatten_output(cls, listoflists):
+        return [item for sublist in listoflists for item in sublist]
+    
     @staticmethod
     def extract_pos(node: typing.Union[Node, typing.Tuple]):
         """ Gets the x and y coordinates of an object whose type could be either Node or a simple Tuple """

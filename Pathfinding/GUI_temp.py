@@ -33,13 +33,15 @@ class TempGUI:
 
         path_x = [get_x(node)+0.5 for node in path]
         path_y = [get_y(node)+0.5 for node in path]
+        
         for x,y in zip(path_x,path_y):
             plt.scatter(x, y, color='b')
             
             if real_time:
                 plt.pause(delay)
-                if (x,y) in list(zip(targets_x, targets_y)):
-                    plt.scatter(x, y, color='y')
+            if (x,y) in list(zip(targets_x, targets_y)):
+                plt.scatter(x, y, color='y')
+                if real_time:
                     plt.pause(delay*1.5)
 
         # ax.yaxis.get_major_locator().set_params(integer=True)
