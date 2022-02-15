@@ -45,6 +45,8 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim8;
 
+UART_HandleTypeDef huart3;
+
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
@@ -84,6 +86,7 @@ static void MX_TIM8_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_USART3_UART_Init(void);
 void StartDefaultTask(void *argument);
 void motors(void *argument);
 void encoder_task(void *argument);
@@ -95,7 +98,7 @@ void show(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint8_t aRxBuffer[20];
 /* USER CODE END 0 */
 
 /**
@@ -130,8 +133,11 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
+
+  HAL_UART_Receive_IT(&huart3,(uint8_t *) aRxBuffer, 10);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -478,6 +484,39 @@ static void MX_TIM8_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -522,7 +561,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
+{
+	UNUSED(huart);
 
+	HAL_UART_Transmit(&huart3,(uint8_t *)aRxBuffer, 10, 0xFFFF);
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -536,10 +580,15 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	uint8_t ch = 'A';
+	  for(;;)
+	  {
+		HAL_UART_Transmit(&huart3,(uint8_t *)&ch,1,0xFFFF);
+		if(ch<'Z')
+			ch++;
+		else ch = 'A';
+	    osDelay(5000);
+	  }
   /* USER CODE END 5 */
 }
 
@@ -564,54 +613,93 @@ void motors(void *argument)
 //		osDelay(2000);
 //	}
 
+
+	uint16_t pwmVal;
+	uint16_t pwmVal_2;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 
-	//right turn
-	htim1.Instance->CCR4 = 74;
-	osDelay(500);
-	htim1.Instance->CCR4 = 120;
-	uint16_t pwmVal = 6000;
-	uint16_t pwmVal_2 = 0;
+	char direction = 'f'; // 'l' for left, 'r' for right, 'f' for forward
 
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
-	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	osDelay(650); // set this to change the angle of turn
-	pwmVal = 0;
-	pwmVal_2 = 0;
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	htim1.Instance->CCR4 = 74;
+	switch (direction) {
+		case 'r':
+			//right turn
+			for (int i = 0; i < 2; ++i) {
+				htim1.Instance->CCR4 = 73;
+				osDelay(500);
+				htim1.Instance->CCR4 = 120;
+				pwmVal = 6000;
+				pwmVal_2 = 0;
+
+				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+				HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+				osDelay(630); // set this to change the angle of turn
+				pwmVal = 0;
+				pwmVal_2 = 0;
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+				htim1.Instance->CCR4 = 73;
+				osDelay(500);
+			}
+
+			break;
+		case 'l':
+			//left turn
+			htim1.Instance->CCR4 = 73;
+			osDelay(500);
+			htim1.Instance->CCR4 = 44;
+			pwmVal = 0;
+			pwmVal_2 = 6000;
+
+			HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+			HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+			__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+			__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+			osDelay(650); // set this to change the angle of turn
+			pwmVal = 0;
+			pwmVal_2 = 0;
+			__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+			__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+			htim1.Instance->CCR4 = 73;
+			break;
+		case 'f':
+			// forward i * 10cm
+			for(int i=0; i < 12; ++i)
+			{
+				htim1.Instance->CCR4 = 73;
+				osDelay(500);
+				pwmVal = 5505;
+				pwmVal_2 = 5820;
+
+				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+				HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+				osDelay(125); // set this to change the distance
+				// osDelay(120) is 10cm
+				pwmVal = 0;
+				pwmVal_2 = 0;
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+			}
+			break;
+		}
 
 
-  /* USER CODE BEGIN motors */
-//  uint16_t pwmVal = 6000;
-//  uint16_t pwmVal_2 = 6000;
-//
-//  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-//  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
-//  /* Infinite loop */
-//  for(;;)
-//  {
-//	  HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
-//	  HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
-//	  HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
-//	  HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
-//	  // pwmVal++;
-//		  //Modify the comparison value for the duty cycle
-//	  __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
-//	  __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-//	  pwmVal = 0;
-//	  pwmVal_2 = 0;
-//    osDelay(160);
-//  }
-  /* USER CODE END motors */
-}
+	}
 
 /* USER CODE BEGIN Header_encoder_task */
 /**
@@ -711,6 +799,7 @@ void show(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	sprintf(hello, "%s\0", aRxBuffer);
 	OLED_ShowString(10, 10, hello);
 	OLED_Refresh_Gram();
     osDelay(1000);
