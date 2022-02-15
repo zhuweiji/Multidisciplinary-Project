@@ -328,10 +328,10 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -377,10 +377,10 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 7199;
+  htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -601,19 +601,18 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_motors */
 void motors(void *argument)
 {
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-//	for(;;) {
-//		htim1.Instance->CCR4 = 110; //82
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 74; //72
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 44; //62
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 74; //62
-//		osDelay(2000);
-//	}
-
-
+  /* USER CODE BEGIN motors */
+	//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	//	for(;;) {
+	//		htim1.Instance->CCR4 = 110; //82
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 74; //72
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 44; //62
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 74; //62
+	//		osDelay(2000);
+	//	}
 	uint16_t pwmVal;
 	uint16_t pwmVal_2;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
@@ -697,9 +696,8 @@ void motors(void *argument)
 			}
 			break;
 		}
-
-
-	}
+  /* USER CODE END motors */
+}
 
 /* USER CODE BEGIN Header_encoder_task */
 /**
