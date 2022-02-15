@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
+#include "math.h"
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -328,10 +330,10 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -377,10 +379,10 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 7199;
+  htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -567,6 +569,165 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
 	HAL_UART_Transmit(&huart3,(uint8_t *)aRxBuffer, 10, 0xFFFF);
 }
+
+// motors function
+
+void stop_rear_wheels()
+{
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, 0);
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, 0);
+}
+
+void set_wheel_direction(bool isForward){
+	if (isForward){
+		HAL_GPIO_WritePin(GPIOA,AIN2_Pin,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOA,AIN1_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+	} else {
+		HAL_GPIO_WritePin(GPIOA,AIN2_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOA,AIN1_Pin,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_SET);
+	}
+}
+
+uint32_t motorAPwm = 5840; // 5820
+uint32_t motorBPwm = 5510; // 5510;
+uint32_t motorAPwmLow = 550;
+uint32_t motorBPwmLow = 500;
+uint32_t servoRight = 120;
+uint32_t servoLeft = 44;
+uint32_t servoMid = 73;
+
+/** measure distance **/
+//float measuredDis = 0;
+bool isMeasureDis = false;
+
+uint32_t findDiffTime (bool isCountDown, uint32_t cnt1, uint32_t cnt2){
+	uint32_t diff;
+	if(isCountDown){
+		if(cnt2 < cnt1)
+			diff = cnt1 - cnt2;
+		else
+			diff = (65535 - cnt2) + cnt1;
+	}
+	else{
+		if(cnt2 > cnt1)
+			diff = cnt2 - cnt1;
+		else
+			diff = (65535 - cnt1) + cnt2;
+	}
+	return diff;
+}
+
+float measure (int cnt1_A, int cnt1_B){
+	float disA, disB;
+	int cnt2_A, cnt2_B, diff_A, diff_B;
+	cnt2_A = __HAL_TIM_GET_COUNTER(&htim2);
+	cnt2_B = __HAL_TIM_GET_COUNTER(&htim3);
+
+	diff_A = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), cnt1_A, cnt2_A);
+	diff_B = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), cnt1_B, cnt2_B);
+
+	disA = diff_A*6.5/(330*4)*(M_PI);
+	disB = diff_B*6.5/(330*4)*(M_PI);
+	return (disA + disB)/2;
+}
+
+/* distance should be in cm*/
+void move_straight(bool isForward, float distance)
+{
+//	uint32_t distance_ticks = ((distance/100)/(0.065*3.1416)) / (speedConstant/330*36) *60 * 1000;
+	//(1*1.24/(0.065*3.1416)) / (1180/330*36) *60 * 1000
+	set_wheel_direction(isForward);
+	uint32_t tick, deltaT;
+	uint8_t hello_A[20];
+	isMeasureDis = true; // trigger measure distance
+	float measuredDis = 0;
+	int cnt1_A, cnt1_B;
+	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
+  cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+	tick = HAL_GetTick();
+	uint32_t usePwmA, usePwmB;
+	if (distance > 10){
+		usePwmA = motorAPwm;
+		usePwmB = motorBPwm;
+	} else {
+		usePwmA = motorAPwmLow;
+		usePwmB = motorBPwmLow;
+	}
+	while (distance > measuredDis) {
+		deltaT = HAL_GetTick() - tick;
+		if (deltaT > 10L){
+			htim1.Instance->CCR4 = servoMid;
+			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, usePwmA);
+			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+//			sprintf(hello_A, "Dis:%f\0", distance);
+//			OLED_ShowString(10, 20, hello_A);
+//			sprintf(hello_A, "Me:%f\0", measuredDis);
+//			OLED_ShowString(10, 30, hello_A);
+//			OLED_Refresh_Gram();
+//			sprintf(hello_A, "Ran:%d\0", 0);
+//			OLED_ShowString(10, 40, hello_A);
+//			OLED_Refresh_Gram();
+			measuredDis = measure(cnt1_A, cnt1_B);
+			tick = HAL_GetTick();
+		}
+	}
+	isMeasureDis = false; // stop measure
+	stop_rear_wheels();
+}
+
+void turn_left(bool isForward)
+{
+
+	// execute turn
+	htim1.Instance->CCR4 = servoLeft;    //extreme left
+	osDelay(300);
+
+	// set pins
+	if (isForward){
+		set_wheel_direction(isForward);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, 300);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, 3900);
+	} else {
+		set_wheel_direction(isForward);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, 800);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, 3850);
+	}
+
+	// reset rear wheels
+	stop_rear_wheels();
+
+	// reset servo wheels
+	htim1.Instance->CCR4 = 75;
+}
+void turn_right(bool isForward)
+{
+	// set pins
+	if (isForward){
+		htim1.Instance->CCR4 = 100;    //extreme right
+		osDelay(300);
+		set_wheel_direction(isForward);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, 3500); // why there is diff here with below pwm
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, 1200);
+	} else {
+		htim1.Instance->CCR4 = 101;    //extreme right
+		osDelay(300);
+		set_wheel_direction(isForward);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, 3450);
+		__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, 1280);
+	}
+
+	// reset rear wheels
+	stop_rear_wheels();
+
+	// reset servo wheels
+	htim1.Instance->CCR4 = 75;
+}
+
+// end motors function
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -601,22 +762,28 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_motors */
 void motors(void *argument)
 {
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-//	for(;;) {
-//		htim1.Instance->CCR4 = 110; //82
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 74; //72
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 44; //62
-//		osDelay(2000);
-//		htim1.Instance->CCR4 = 74; //62
-//		osDelay(2000);
-//	}
-
-
+  /* USER CODE BEGIN motors */
+	//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	//	for(;;) {
+	//		htim1.Instance->CCR4 = 110; //82
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 74; //72
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 44; //62
+	//		osDelay(2000);
+	//		htim1.Instance->CCR4 = 74; //62
+	//		osDelay(2000);
+	//	}
 	uint16_t pwmVal;
 	uint16_t pwmVal_2;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+	/**
+	 * note: if set encoder in different channel, may cause in first for loop, encoder not wake up yet and result in move straight no work
+	 */
 
 	char direction = 'f'; // 'l' for left, 'r' for right, 'f' for forward
 
@@ -630,8 +797,6 @@ void motors(void *argument)
 				pwmVal = 6000;
 				pwmVal_2 = 0;
 
-				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
 				HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
@@ -656,8 +821,6 @@ void motors(void *argument)
 			pwmVal = 0;
 			pwmVal_2 = 6000;
 
-			HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-			HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
 			HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
@@ -680,8 +843,6 @@ void motors(void *argument)
 				pwmVal = 5505;
 				pwmVal_2 = 5820;
 
-				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-				HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
 				HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
@@ -695,11 +856,22 @@ void motors(void *argument)
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 			}
-			break;
+				break;
 		}
-
-
-	}
+	bool isMoved = false;
+	for(;;)
+	  {
+			switch (aRxBuffer[0]){
+				case 'w':
+					move_straight(true, 100);
+					break;
+				default:
+					break;
+			}
+	  	osDelay(100);
+	  }
+  /* USER CODE END motors */
+}
 
 /* USER CODE BEGIN Header_encoder_task */
 /**
@@ -712,76 +884,78 @@ void encoder_task(void *argument)
 {
   /* USER CODE BEGIN encoder_task */
   /* Infinite loop */
-  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_1);
-
-  int cnt1_A, cnt2_A, diff_A;
-  uint32_t tick, deltaT;
-
-  int cnt1_B, cnt2_B, diff_B;
-  uint32_t tick_B;
-
-  cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
-  uint8_t hello_B[20];
-
-  cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
-  tick = HAL_GetTick();
-  uint8_t hello_A[20];
-  uint16_t dir;
-
-  int veloA, veloB;
-
-  for(;;)
-  {
-	deltaT = HAL_GetTick() - tick;
-	if(deltaT > 1000L){
-		cnt2_A = __HAL_TIM_GET_COUNTER(&htim2);
-		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2)){
-			if(cnt2_A < cnt1_A)
-				diff_A = cnt1_A - cnt2_A;
-			else
-				diff_A = (65535 - cnt2_A) + cnt1_A;
-		}
-		else{
-			if(cnt2_A > cnt1_A)
-				diff_A = cnt2_A - cnt1_A;
-			else
-				diff_A = (65535 - cnt1_A) + cnt2_A;
-		}
-
-		cnt2_B = __HAL_TIM_GET_COUNTER(&htim3);
-		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3)){
-			if(cnt2_B < cnt1_B)
-				diff_B = cnt1_B - cnt2_B;
-			else
-				diff_B = (65535 - cnt2_B) + cnt1_B;
-		}
-		else{
-			if(cnt2_B > cnt1_B)
-				diff_B = cnt2_B - cnt1_B;
-			else
-				diff_B = (65535 - cnt1_B) + cnt2_B;
-		}
-
-		veloA = diff_A/(deltaT/1000)/330*60;
-		veloB = diff_B/(deltaT/1000)/330*60;
-
-
-		sprintf(hello_A, "Speed A:%5d\0", veloA);
-		OLED_ShowString(10, 20, hello_A);
-
-		sprintf(hello_B, "Speed B:%5d\0", veloB);
-		OLED_ShowString(10, 30, hello_B);
+//  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+//  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+  for (;;){
+  	osDelay(10000);
+  }
+//  int cnt1_A, cnt2_A, diff_A;
+//  uint32_t tick, deltaT;
+//
+//  int cnt1_B, cnt2_B, diff_B;
+//  uint32_t tick_B;
+//
+//  cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+//  uint8_t hello_B[20];
+//
+//  cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
+//  tick = HAL_GetTick();
+//  uint8_t hello_A[20];
+//  uint16_t dir;
+//
+//  int veloA, veloB;
+//
+//  for(;;)
+//  {
+//	deltaT = HAL_GetTick() - tick;
+//	if(deltaT > 1000L){
+//		cnt2_A = __HAL_TIM_GET_COUNTER(&htim2);
+//		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2)){
+//			if(cnt2_A < cnt1_A)
+//				diff_A = cnt1_A - cnt2_A;
+//			else
+//				diff_A = (65535 - cnt2_A) + cnt1_A;
+//		}
+//		else{
+//			if(cnt2_A > cnt1_A)
+//				diff_A = cnt2_A - cnt1_A;
+//			else
+//				diff_A = (65535 - cnt1_A) + cnt2_A;
+//		}
+//
+//		cnt2_B = __HAL_TIM_GET_COUNTER(&htim3);
+//		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3)){
+//			if(cnt2_B < cnt1_B)
+//				diff_B = cnt1_B - cnt2_B;
+//			else
+//				diff_B = (65535 - cnt2_B) + cnt1_B;
+//		}
+//		else{
+//			if(cnt2_B > cnt1_B)
+//				diff_B = cnt2_B - cnt1_B;
+//			else
+//				diff_B = (65535 - cnt1_B) + cnt2_B;
+//		}
+//
+//		veloA = diff_A/(deltaT/1000)/330*60;
+//		veloB = diff_B/(deltaT/1000)/330*60;
+//
+//
+//		sprintf(hello_A, "Speed A:%5d\0", veloA);
+//		OLED_ShowString(10, 20, hello_A);
+//
+//		sprintf(hello_B, "Speed B:%5d\0", veloB);
+//		OLED_ShowString(10, 30, hello_B);
 
 //		dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
 //		sprintf(hello_A, "Dir:%5d\0", dir);
 //		OLED_ShowString(10, 30, hello_A);
-		cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
-		cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
-		tick = HAL_GetTick();
-	}
+//		cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
+//		cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+//		tick = HAL_GetTick();
+//	}
 //    osDelay(1);
-  }
+//  }
   /* USER CODE END encoder_task */
 }
 
@@ -799,9 +973,9 @@ void show(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	sprintf(hello, "%s\0", aRxBuffer);
-	OLED_ShowString(10, 10, hello);
-	OLED_Refresh_Gram();
+		sprintf(hello, "%s\0", aRxBuffer);
+		OLED_ShowString(10, 10, hello);
+		OLED_Refresh_Gram();
     osDelay(1000);
   }
   /* USER CODE END show */
