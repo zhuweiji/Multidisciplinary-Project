@@ -859,12 +859,16 @@ void motors(void *argument)
 				break;
 		}
 	bool isMoved = false;
-	for(int i =0; i<1; i++)
+	for(;;)
 	  {
-	  	 if (! isMoved){
-	  		 move_straight(true, 100);
-	  		 isMoved = true;
-	  	 }
+			switch (aRxBuffer[0]){
+				case 'w':
+					move_straight(true, 100);
+					break;
+				default:
+					break;
+			}
+	  	osDelay(100);
 	  }
   /* USER CODE END motors */
 }
@@ -883,7 +887,7 @@ void encoder_task(void *argument)
 //  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 //  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   for (;;){
-  	osDelay(100);
+  	osDelay(10000);
   }
 //  int cnt1_A, cnt2_A, diff_A;
 //  uint32_t tick, deltaT;
@@ -969,9 +973,9 @@ void show(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	sprintf(hello, "%s\0", aRxBuffer);
-	OLED_ShowString(10, 10, hello);
-	OLED_Refresh_Gram();
+		sprintf(hello, "%s\0", aRxBuffer);
+		OLED_ShowString(10, 10, hello);
+		OLED_Refresh_Gram();
     osDelay(1000);
   }
   /* USER CODE END show */
