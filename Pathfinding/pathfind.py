@@ -1,9 +1,7 @@
 from math import sqrt
 from dataclasses import dataclass
-from enum import Enum
 import itertools
 import math
-from re import T
 import typing
 import heapq
 
@@ -168,10 +166,32 @@ class Pathfinder:
 
 
     @classmethod
-    def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list, direction_at_target=None, update_callback=None):
-        # distance from the target from which to stop marking visited nodes, 
-        # so that nodes can be explored more than once in order to find paths which lead to the corect facing direction
-        STAND_OFF_DISTANCE = 3
+    def get_path_between_two_points(cls, start: Node, target: Node, obstacles: list,
+        direction_at_target=None, update_callback=None, standoff_distance=None):
+        '''	
+        Use A* to calculate a path between two points
+        
+        Parameters
+        ----------
+        start: node or tuple (x,y)
+        target: node or tuple(x,y)
+        obstacles: List(node) or List(tuple x,y)
+        direction_at_target: str Left, Right, Up, Down
+            direction the agent should be facing at the target point
+        update_callback: function
+            logging function to be called when path has been found
+        standoff_distance: int
+            one-dimensional distance from target where multiple paths to a node can be found
+            (used to find paths with correction facing direction at target)
+        
+        Returns
+        -------
+        {'path': List(tuples)
+            coords of each point on the path from start to target, 
+        'distance': float
+            total distance covered by the path taken
+        }
+        '''
 
         sx, sy = cls.extract_pos(start)
         ex, ey = cls.extract_pos(target)
@@ -237,7 +257,7 @@ class Pathfinder:
 
                 heapq.heappush(queue, (next_cost, (x, y),next_direction, path_to_next))
 
-            if abs(current_x - ex) <= STAND_OFF_DISTANCE or abs(current_y - ey) <= STAND_OFF_DISTANCE:
+            if abs(current_x - ex) <= standoff_distance or abs(current_y - ey) <= standoff_distance:
                 pass
             else:
                 visited[memo_key] = True
@@ -264,6 +284,7 @@ class Pathfinder:
         -------
             facing_direction_list: List(FacingDirections)
         '''
+        # TODO facing directions should be a class variable
         FACING_DIRECTIONS ={
             (0, 1):  'UP',
             (0, -1): 'DOWN',

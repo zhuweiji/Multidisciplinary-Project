@@ -89,7 +89,6 @@ if __name__ == "__main__":
     
     TempGUI.plot_targets_and_path([start, *targets], [], obstacles=obstacles, real_time=True)
 
-
     print('================================================================')
     print(f'{targets=}')
     print(f'{obstacles=}')
