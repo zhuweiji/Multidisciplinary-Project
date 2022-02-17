@@ -112,15 +112,100 @@ class Robot:
 
 
 class Pathfinder:
-    moveset = Robot.moveset
+    agent = Robot
+    moveset = agent.moveset
 
     OBSTACLE_SIZE = (1, 1)
     ROBOT_SIZE = (3, 3)
     ARENA_SIZE = (19, 19)
 
     @classmethod
-    def find_path_to_axis(cls, start, axis_start: tuple[int, int], axis_end: tuple[int, int], starting_face='N',
+    def find_path_to_point(cls, start, target, starting_face='N', obstacles=[],
+                            direction_at_target=None, update_callback=None):
+        '''	
+        Find a reasonable path from starting location to destination location
+        Pathfinding algorothm is A*
+
+        Takes into account the direction the agent is facing, and the possible moves it can make
+        Final facing direction can be any direction
+        '''
+        result = {'path':None, 'distance':None, 'moves':None}
+        tx, ty = cls.extract_pos(target)
+        
+        # heapqueue structure - total cost f, current location, facing, path to target, move instructions to target
+        queue = [(0, start, starting_face, [], [])]
+        visited_nodes = set()
+
+        # estimator cost function from location to destination
+        h = Pathfinder.h_function
+
+        assert cls.ROBOT_SIZE == (3, 3)
+        assert cls.OBSTACLE_SIZE == (1, 1)
+        assert cls.moveset
+
+        while True:
+            cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
+
+            (current_x, current_y) = current_node
+            visited_nodes.add(current_node)
+            for movetype in cls.moveset:
+                # delta-x and y from a possible movement by the robot
+                (dx, dy), final_facing = cls.agent.move_w_facing(
+                    facing_direction, movetype)
+                # final position after the move
+                x, y = (current_x+dx, current_y+dy)
+
+                if (x, y) in visited_nodes:
+                    continue
+
+                # all points that must be clear for the move to be possible
+                path_to_keep_clear = [(x, y)]
+
+                if dx != 0:                         # forward movements are straight forward, but L/R turns require n,n movements
+                    atomic_points = [
+                        # create a L shaped path the size of dx
+                        *[(cls._change_val(current_x, i, dx > 0), current_y+dy)
+                          for i in range(1, abs(dx))],
+                        *[(current_x, cls._change_val(current_y, i, dy > 0))
+                          for i in range(1, abs(dy)+1)],
+                    ]
+                    path_to_keep_clear = [*path_to_keep_clear, *atomic_points]
+
+                occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
+                                                                   (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
+
+                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y):
+                    continue
+
+                path_to_next = [*path_to_current, (x, y)]
+                movetypes_to_next = [*movetypes_to_current, movetype]
+
+                next_cost = h(x, y) + cost
+
+                if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
+                    next_cost += 1.8
+                elif movetype in ['RIGHT_RVR', 'LEFT_RVR']:
+                    next_cost += 2
+                elif movetype == 'REVERSE':
+                    next_cost += 0.1
+
+                if (x == tx and y == ty):
+                    return {'path': path_to_next, 'distance': next_cost, 'moves': movetypes_to_next}
+
+                heapq.heappush(
+                    queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
+
+    @classmethod
+    def find_path_to_linear_target(cls, start, axis_start: tuple[int, int], axis_end: tuple[int, int], starting_face,
         obstacles: list[tuple]=[]) -> list[tuple[int,int]]:
+        '''	
+        Find a reasonable path from a starting position to a destination which is a line, which is defined as the points inclusive between axis_start and axis_end
+        Pathfinding algorithm is A* with heuristic = distance from point to line 
+
+        Takes into account the direction the agent is facing, and the possible moves it can make
+        Final facing direction can be any direction
+        '''
+        result = {'path': None, 'distance': None, 'moves': None}
 
         tx1, ty1 = cls.extract_pos(axis_start)
         tx2, ty2 = cls.extract_pos(axis_end)
@@ -140,7 +225,7 @@ class Pathfinder:
             visited_nodes.add(current_node)
 
             for movetype in cls.moveset:   
-                (dx,dy), final_facing = Robot.move_w_facing(facing_direction, movetype)  # delta-x and y from a possible movement by the robot
+                (dx,dy), final_facing = cls.agent.move_w_facing(facing_direction, movetype)  # delta-x and y from a possible movement by the robot
                 x, y = (current_x+dx, current_y+dy) # final position after the move
                 
                 if (x,y) in visited_nodes:
@@ -164,13 +249,14 @@ class Pathfinder:
                 path_to_next = [*path_to_current, (x, y)]
                 movetypes_to_next = [*movetypes_to_current, movetype]
 
-                next_cost = distance_heuristic(x,y)
+                next_cost = distance_heuristic(x,y) + cost # TODO add previous cost here ??
                 
-                if dx != 0:
-                    next_cost += 1
-                elif dy == -1:
+                if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
+                    next_cost += 1.8
+                elif movetype in ['RIGHT_RVR','LEFT_RVR']:
+                    next_cost += 2
+                elif movetype == 'REVERSE':
                     next_cost += 0.1
-
 
                 if (tx1 == tx2 and x == tx1 and y in range(ty1, ty2+1)) or \
                     (ty1 == ty2 and y == ty1 and x in range(tx1, tx2+1)):
@@ -178,12 +264,12 @@ class Pathfinder:
 
                 heapq.heappush(
                     queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
-
+            
 
     @classmethod
-    def move_agent(cls, next_move):
-        pass
-
+    def h_function(cls, src_x, src_y, tgt_x, tgt_y):
+        """estimator cost function from location to destination"""
+        return math.sqrt((src_x-tgt_x)**2 + (src_y-tgt_y)**2)
 
     @classmethod
     def _path_to_line(cls, pnt, start, end):
@@ -201,6 +287,23 @@ class Pathfinder:
         dist = vectors.distance(nearest, pnt_vec)
         nearest = vectors.add(nearest, start)
         return (dist, nearest)
+
+    @classmethod
+    def determine_final_facing(cls, initial_facing, move_instructions: list[str]):
+        try:
+            if not (isinstance(move_instructions, list) and all(isinstance(i, str) for i in move_instructions)):
+                raise ValueError('move instructions must be a list of string instructions')
+        except IndexError as E:
+            raise ValueError('move instructions must be a list of string instructions')
+            
+        
+        if any(i not in cls.moveset for i in move_instructions):
+            raise ValueError('move instructions do not correspond to available moves by agent')
+        
+        facing = initial_facing
+        for i in move_instructions:
+            facing = cls.agent.move_w_facing(facing, i)[1]
+        return facing
 
 
     @classmethod
