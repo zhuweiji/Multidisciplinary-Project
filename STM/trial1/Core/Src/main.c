@@ -904,78 +904,9 @@ void encoder_task(void *argument)
 {
   /* USER CODE BEGIN encoder_task */
   /* Infinite loop */
-//  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-//  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   for (;;){
   	osDelay(10000);
   }
-//  int cnt1_A, cnt2_A, diff_A;
-//  uint32_t tick, deltaT;
-//
-//  int cnt1_B, cnt2_B, diff_B;
-//  uint32_t tick_B;
-//
-//  cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
-//  uint8_t hello_B[20];
-//
-//  cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
-//  tick = HAL_GetTick();
-//  uint8_t hello_A[20];
-//  uint16_t dir;
-//
-//  int veloA, veloB;
-//
-//  for(;;)
-//  {
-//	deltaT = HAL_GetTick() - tick;
-//	if(deltaT > 1000L){
-//		cnt2_A = __HAL_TIM_GET_COUNTER(&htim2);
-//		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2)){
-//			if(cnt2_A < cnt1_A)
-//				diff_A = cnt1_A - cnt2_A;
-//			else
-//				diff_A = (65535 - cnt2_A) + cnt1_A;
-//		}
-//		else{
-//			if(cnt2_A > cnt1_A)
-//				diff_A = cnt2_A - cnt1_A;
-//			else
-//				diff_A = (65535 - cnt1_A) + cnt2_A;
-//		}
-//
-//		cnt2_B = __HAL_TIM_GET_COUNTER(&htim3);
-//		if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3)){
-//			if(cnt2_B < cnt1_B)
-//				diff_B = cnt1_B - cnt2_B;
-//			else
-//				diff_B = (65535 - cnt2_B) + cnt1_B;
-//		}
-//		else{
-//			if(cnt2_B > cnt1_B)
-//				diff_B = cnt2_B - cnt1_B;
-//			else
-//				diff_B = (65535 - cnt1_B) + cnt2_B;
-//		}
-//
-//		veloA = diff_A/(deltaT/1000)/330*60;
-//		veloB = diff_B/(deltaT/1000)/330*60;
-//
-//
-//		sprintf(hello_A, "Speed A:%5d\0", veloA);
-//		OLED_ShowString(10, 20, hello_A);
-//
-//		sprintf(hello_B, "Speed B:%5d\0", veloB);
-//		OLED_ShowString(10, 30, hello_B);
-
-//		dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
-//		sprintf(hello_A, "Dir:%5d\0", dir);
-//		OLED_ShowString(10, 30, hello_A);
-//		cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
-//		cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
-//		tick = HAL_GetTick();
-//	}
-//    osDelay(1);
-//  }
   /* USER CODE END encoder_task */
 }
 
