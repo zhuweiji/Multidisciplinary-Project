@@ -89,15 +89,14 @@ if __name__ == "__main__":
     
     TempGUI.plot_targets_and_path([start, *targets], [], obstacles=obstacles, real_time=True)
 
-
     print('================================================================')
     print(f'{targets=}')
     print(f'{obstacles=}')
 
     facing_directions = Pathfinder.find_facing_directions(targets, obstacles)
-    res = Pathfinder.shortest_path_to_n_points(
-        start, targets, facing_direction_for_node_list=facing_directions, obstacles=obstacles, update_callback=points_completed_updater)
-
+    # res = Pathfinder.shortest_path_to_n_points(
+        # start, targets, facing_direction_for_node_list=facing_directions, obstacles=obstacles, update_callback=points_completed_updater)
+    res = Pathfinder.shortest_path_to_n_points(start, targets, obstacles=obstacles, update_callback=points_completed_updater, facing_direction_for_node_list=[])
     path = Pathfinder.flatten_output(res['path'])
 
     print(f'\n{path=}\n')
