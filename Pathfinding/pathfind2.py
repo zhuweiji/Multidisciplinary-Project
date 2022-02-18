@@ -18,13 +18,14 @@ class Node:
 
 @dataclass(eq=True, frozen=True)
 class Robot:
+    turn_radius = 2
     moveset = {
         'FORWARD':   (0, 1),
         'REVERSE':   (0, -1),
-        'RIGHT_FWD': (1, 1),
-        'RIGHT_RVR': (1, -1),
-        'LEFT_FWD':  (-1, 1),
-        'LEFT_RVR':  (-1, -1),
+        'RIGHT_FWD': (turn_radius, turn_radius),
+        'RIGHT_RVR': (turn_radius, -turn_radius),
+        'LEFT_FWD':  (-turn_radius, turn_radius),
+        'LEFT_RVR':  (-turn_radius, -turn_radius),
     }         
     moveset_i = {v:k for k,v in moveset.items()}            
 
@@ -32,6 +33,74 @@ class Robot:
 
     pos: Node
     _facing: str
+
+    @classmethod
+    def reorient(cls, current_coords, current_facing, final_facing):
+        """Get a path that reorients the agent in a new direction on the same point
+        ie. find a path with the same starting and ending location that has a final facing same as the given arg
+        """
+        if current_facing not in cls.valid_facings:
+            raise ValueError(f'{current_facing=} is not valid in valid facings of agent')
+        if final_facing not in cls.valid_facings:
+            raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
+
+        result = {'final_facing': None, 'path':[], 'moves':None}
+
+        def _general_reorient(moves):
+            nonlocal result
+            facing = current_facing
+            coords = current_coords
+            path = []
+            for move in moves:
+                (dx,dy), new_facing = cls.move_w_facing(facing, move)
+                cx,cy = coords
+                coords = cx+dx, cy+dy
+                facing = new_facing
+                path.append(coords)
+
+            result['path'] = path
+            result['moves'] = moves
+            result['final_facing'] = final_facing
+            return result
+            
+        if current_facing == final_facing:
+            result['final_facing'] = current_facing
+            return result
+
+        assert cls.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
+        if current_facing == 'N':
+            if final_facing == 'S':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+
+        elif current_facing == 'S':
+            if final_facing == 'N':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+        
+        elif current_facing == 'E':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+
+        elif current_facing == 'W':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+        
+        assert False, 'Function should return a value before this point'
 
     @classmethod
     def move_w_facing(cls, facing, command: typing.Union[str, tuple[int]]) -> tuple[tuple[int,int], str]:
@@ -92,6 +161,7 @@ class Robot:
                 final_facing = 'N'
             elif command == 'LEFT_RVR':
                 final_facing = 'S'
+                
         elif facing == 'W':
             move_coords = tuple_swap(move_coords)
             move_coords = tuple_multiply(move_coords, (-1, 1))
@@ -121,7 +191,7 @@ class Pathfinder:
 
     @classmethod
     def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list,
-                             update_callback=None, facing_direction_for_node_list: typing.List[str]=[],
+                             update_callback=None, facing_direction_for_node_list: typing.List[str]=None,
                              starting_facing='N'):
         '''	
         Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
@@ -142,6 +212,9 @@ class Pathfinder:
             'distance': int
         }
         '''
+        if not facing_direction_for_node_list:
+            facing_direction_for_node_list = []
+
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
         if facing_direction_for_node_list:
@@ -163,14 +236,14 @@ class Pathfinder:
             output['path'].append(res['path'])
             output['distance'] += res['distance']
             output['final_facing'] = res['final_facing']
-            output['moves'] = res['moves']
+            output['moves'].append(res['moves'])
             facing = res['final_facing']
 
         return output
 
     @classmethod
     def shortest_path_to_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list,
-             approximate=True, update_callback=None, facing_direction_for_node_list: typing.List[str]=[],
+             approximate=True, update_callback=None, facing_direction_for_node_list: typing.List[str]=None,
              starting_facing='N'):
         '''	
         Given a unordered list of nodes, and a starting location, try to find the shortest path that will travel to all of the given nodes
@@ -193,6 +266,8 @@ class Pathfinder:
             'distance': int
         }
         '''
+        if not facing_direction_for_node_list:
+            facing_direction_for_node_list = []
         if len(node_list) == 0:
             raise ValueError('Cannot find path if there are no target nodes')
 
@@ -230,7 +305,7 @@ class Pathfinder:
                 starting_facing=starting_facing)
 
     @classmethod
-    def find_path_to_point(cls, start, target, starting_face='N', obstacles=[],
+    def find_path_to_point(cls, start, target, starting_face='N', obstacles=None,
                             direction_at_target=None, update_callback=None):
         '''	
         Find a reasonable path from starting location to destination location
@@ -247,6 +322,8 @@ class Pathfinder:
         final_facing: str
 
         '''
+        if not obstacles:
+            obstacles = []
         result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
         tx, ty = cls.extract_pos(target)
 
@@ -324,7 +401,7 @@ class Pathfinder:
 
     @classmethod
     def find_path_to_linear_target(cls, start, axis_start: tuple[int, int], axis_end: tuple[int, int], starting_face,
-        obstacles: list[tuple]=[]) -> list[tuple[int,int]]:
+        obstacles: list[tuple]) -> list[tuple[int,int]]:
         '''	
         Find a reasonable path from a starting position to a destination which is a line, which is defined as the points inclusive between axis_start and axis_end
         Pathfinding algorithm is A* with heuristic = distance from point to line 
@@ -332,6 +409,8 @@ class Pathfinder:
         Takes into account the direction the agent is facing, and the possible moves it can make
         Final facing direction can be any direction
         '''
+        if not obstacles:
+            obstacles = []
         result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
 
         tx1, ty1 = cls.extract_pos(axis_start)

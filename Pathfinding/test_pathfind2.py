@@ -1,4 +1,4 @@
-from pathfind2 import Pathfinder
+from pathfind2 import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def update_callback(message=None):
@@ -34,23 +34,25 @@ points_completed_updater = update_callback(f'Pathfinding completed for point')
 # TempGUI.plot_targets_and_path([start, *target_axis], path, obstacles, real_time=True, delay=0.1)
 """ end"""
 
-""" test pathfind to n points"""
-start = (0,0)
-targets = [(3, 14), (12, 5), (15, 5), (2, 8), (18, 16)]
-obstacles = [(5, 14), (10, 5), (15, 3), (2, 10), (20, 16)]
-starting_face = 'N'
+# """ test pathfind to n points"""
+# start = (0,0)
+# targets = [(3, 14), (12, 5), (15, 5), (2, 8), (18, 16)]
+# obstacles = [(5, 14), (10, 5), (15, 3), (2, 10), (20, 16)]
+# starting_face = 'N'
+
+# res = Pathfinder.shortest_path_to_n_points(start_node=start, node_list=targets, obstacles=obstacles,
+#     update_callback=points_completed_updater)
+# print(res)
+# path = res['path']
+# path = Pathfinder.flatten_output(path)
+# TempGUI.plot_targets_and_path([start, *targets],path=path, obstacles=obstacles, real_time=True, delay=0.5)
+
+# """ end """
 
 
 
-res = Pathfinder.shortest_path_to_n_points(start_node=start, node_list=targets, obstacles=obstacles,
-    update_callback=points_completed_updater)
-print(res)
-path = res['path']
-path = Pathfinder.flatten_output(path)
-TempGUI.plot_targets_and_path([start, *targets],path=path, obstacles=obstacles, real_time=True, delay=0.1)
 
 
-""" end """
 
 """
 TODO next steps: 

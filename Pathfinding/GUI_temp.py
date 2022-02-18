@@ -16,10 +16,6 @@ class TempGUI:
             else:
                 return node[1]
 
-        plt.xticks([i for i in range(0, 20)])
-        plt.yticks([i for i in range(0, 20)])
-        plt.grid(True)
-
         targets_x = [get_x(target)+0.5 for target in targets]
         targets_y = [get_y(target)+0.5 for target in targets]
 
@@ -33,6 +29,13 @@ class TempGUI:
 
         path_x = [get_x(node)+0.5 for node in path]
         path_y = [get_y(node)+0.5 for node in path]
+
+        x_edges = [0,0,19,19]
+        y_edges = [0,19,0,19]
+        plt.scatter(x_edges, y_edges, color='b')
+        plt.xticks([i for i in range(0, 20)])
+        plt.yticks([i for i in range(0, 20)])
+        plt.grid(True, which='both')
         
         for x,y in zip(path_x,path_y):
             plt.scatter(x, y, color='b')
