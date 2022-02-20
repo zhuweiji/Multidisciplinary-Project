@@ -762,6 +762,7 @@ void turn_left()
   htim1.Instance->CCR4 = servoMid;
 //	osDelay(500);
 }
+
 void turn_right()
 {
 	htim1.Instance->CCR4 = servoMid;
@@ -778,8 +779,51 @@ void turn_right()
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 	osDelay(660); // set this to change the angle of turn
 	stop_rear_wheels();
-	htim1.Instance->CCR4 = servoMid;
+//	htim1.Instance->CCR4 = servoMid;
 //	osDelay(500);
+}
+
+/**
+ * For turning
+ */
+const float tan_of_wheel_deg_right = 0.8/1.3; // 31.06 deg
+float turnRadius = 14.5 / tan_of_wheel_deg_right;
+float calTurnDis (int deg){
+	return turnRadius * deg * M_PI/180;
+}
+void turn_right_deg( int deg){
+	set_wheel_direction(true);
+	uint32_t tick, deltaT;
+
+	float measuredDis = 0;
+	int cnt1_A, cnt1_B;
+	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
+	cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+	tick = HAL_GetTick();
+
+	htim1.Instance->CCR4 = servoRight;
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwm);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, motorBPwm);
+
+	float distance = calTurnDis(deg);
+	while (distance > measuredDis) {
+		deltaT = HAL_GetTick() - tick;
+		if (deltaT > 10L){
+			// comment out OLED code to avoid conflict with show
+	//			sprintf(hello_A, "Dis:%f\0", distance);
+	//			OLED_ShowString(10, 20, hello_A);
+	//			sprintf(hello_A, "Me:%f\0", measuredDis);
+	//			OLED_ShowString(10, 30, hello_A);
+	//			sprintf(hello_A, "Ran:%d\0", 0);
+	//			OLED_ShowString(10, 40, hello_A);
+	//			OLED_Refresh_Gram();
+			measuredDis = measure(cnt1_A, cnt1_B);
+			testVal = (uint8_t) measuredDis;
+			tick = HAL_GetTick();
+		}
+	}
+	stop_rear_wheels();
+	htim1.Instance->CCR4 = servoMid;
 }
 
 // end motors function
@@ -875,7 +919,8 @@ void motors(void *argument)
 						turn_left();
 						break;
 					case 'R':
-						turn_right();
+//						turn_right();
+						turn_right_deg(90);
 						break;
 					default:
 						doCommand = false;
