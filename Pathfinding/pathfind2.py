@@ -29,7 +29,7 @@ class Robot:
     }         
     moveset_i = {v:k for k,v in moveset.items()}            
 
-    valid_facings = set(['N', 'S', 'E', 'W'])
+    valid_facings = ['N', 'S', 'E', 'W']
 
     pos: Node
     _facing: str
@@ -120,79 +120,7 @@ class Pathfinder:
     OBSTACLE_SIZE = (1, 1)
     ROBOT_SIZE = (3, 3)
     ARENA_SIZE = (19, 19)
-
-
-    @classmethod
-    def reorient(cls, current_coords, current_facing, final_facing):
-        """Get a path that reorients the agent in a new direction on the same point
-        ie. find a path with the same starting and ending location that has a final facing same as the given arg
-        """
-        agent = cls.agent
-        valid_facings = agent.valid_facings
-
-        if current_facing not in valid_facings:
-            raise ValueError(f'{current_facing=} is not valid in valid facings of agent')
-        if final_facing not in valid_facings:
-            raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
-
-        result = {'final_facing': None, 'path':[], 'moves':None}
-
-        def _general_reorient(moves):
-            nonlocal result
-            facing = current_facing
-            coords = current_coords
-            path = []
-            for move in moves:
-                (dx,dy), new_facing = agent.move_w_facing(facing, move)
-                cx,cy = coords
-                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
-                coords = cx+dx, cy+dy
-                facing = new_facing
-                path.append(coords)
-
-            result['path'] = path
-            result['moves'] = moves
-            result['final_facing'] = final_facing
-            return result
-            
-        if current_facing == final_facing:
-            result['final_facing'] = current_facing
-            return result
-
-        assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
-        if current_facing == 'N':
-            if final_facing == 'S':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-
-        elif current_facing == 'S':
-            if final_facing == 'N':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-        
-        elif current_facing == 'E':
-            if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-
-        elif current_facing == 'W':
-            if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-            elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-        
-        assert False, 'Function should return a value before this point'
+    ROBOT_TGT_DIST_FROM_IMG = 2
 
     @classmethod
     def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list,
@@ -325,15 +253,13 @@ class Pathfinder:
         distance: float
         moves: list(str)
         final_facing: str
-
         '''
+
         if not obstacles:
             obstacles = []
         result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
         tx, ty = cls.extract_pos(target)
 
-        print(starting_face)
-        
         # heapqueue structure - total cost f, current location, facing, path to target, move instructions to target
         queue = [(0, start, starting_face, [], [])]
         visited_nodes = set()
@@ -353,25 +279,24 @@ class Pathfinder:
             visited_nodes.add(current_node)
             for movetype in cls.moveset:
                 # delta-x and y from a possible movement by the robot
-                (dx, dy), final_facing = cls.agent.move_w_facing(
-                    facing_direction, movetype)
+                (dx, dy), final_facing = cls.agent.move_w_facing(facing_direction, movetype)
                 # final position after the move
-                x, y = (current_x+dx, current_y+dy)
+                final_x, final_y = (current_x+dx, current_y+dy)
 
-                if (x, y) in visited_nodes:
+                if (final_x, final_y) in visited_nodes:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
 
-                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y):
+                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(final_x, final_y):
                     continue
 
-                path_to_next = [*path_to_current, (x, y)]
+                path_to_next = [*path_to_current, (final_x, final_y)]
                 movetypes_to_next = [*movetypes_to_current, movetype]
 
-                next_cost = h(x, y) + cost
+                next_cost = h(final_x, final_y) + cost
 
                 if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
                     next_cost += 1.8
@@ -380,7 +305,7 @@ class Pathfinder:
                 elif movetype == 'REVERSE':
                     next_cost += 0.1
 
-                if (x == tx and y == ty):
+                if (final_x == tx and final_y == ty):
                     if update_callback:
                         update_callback(f'target point {tx,ty}')
                     result['path'] = path_to_next
@@ -390,7 +315,7 @@ class Pathfinder:
                     return result
 
                 heapq.heappush(
-                    queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
+                    queue, (next_cost, (final_x, final_y), final_facing, path_to_next, movetypes_to_next))
 
     @classmethod
     def find_path_to_linear_target(cls, start, axis_start: tuple[int, int], axis_end: tuple[int, int], starting_face,
@@ -461,6 +386,193 @@ class Pathfinder:
                 heapq.heappush(
                     queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
             
+    @classmethod
+    def generate_photo_taking_points(cls, obstacles, faces):
+        '''	
+        Generate points that are X distance away from the obstacles/image face, at which we will take a photo of the target
+        
+        Parameters
+        ----------
+        obstacles: tuple(x,y)
+            Obstacle locations, where the obstacles contain a face which the images are on
+        faces: str N/S/E/W
+            The face of the obstacle on which the image is on
+        
+        Returns
+        -------
+        list[tuple(x,y)]
+            The list of target points the agent should navigate to    
+        '''
+
+        targets = []
+        
+        if not all(i in ['N','S','E','W'] for i in faces):
+            raise ValueError('All faces must be in N/S/E/W format')
+        if not len(obstacles) == len(faces):
+            raise ValueError('Number of obstacles must be equal to number of faces')
+        
+        for index, obstacle_coords in enumerate(obstacles):
+            img_direction = faces[index]
+            targets.append(cls.move_one(obstacle_coords, img_direction, cls.ROBOT_TGT_DIST_FROM_IMG))
+            # if img_direction == 'N':
+            #     targets.append((0+x, cls.ROBOT_TGT_DIST_FROM_IMG+y))
+            # elif img_direction == 'S':
+            #     targets.append((0+x, -cls.ROBOT_TGT_DIST_FROM_IMG+y))
+            # elif img_direction == 'W':
+            #     targets.append((-cls.ROBOT_TGT_DIST_FROM_IMG+x, 0+y))
+            # else:
+            #     targets.append((cls.ROBOT_TGT_DIST_FROM_IMG+x, 0+y))
+        return targets
+        
+    @classmethod
+    def generate_target_axes(cls, target, obstacle_face, other_obstacles,
+                             min_axis_length=4) -> list[tuple[tuple, tuple]]:
+        '''	
+        Generate a line X distance away from the image face of the obstacle
+        The agent will route to this line, before aligning to the target
+        
+        Parameters
+        ----------
+        target: tuple(x,y)
+            The point which the agent will stop at to attempt image recognition
+        obstacle_face: str N/S/E/W
+            The face of the obstacle on which the image is on
+        other_obstacles: list ( tuple(x,y) )
+            The coordinates of all other obstacles which the agent cannot intrude onto
+        
+        Returns
+        -------
+        ( tuple(tuple(x,y), tuple(x,y)) )
+            list of possible axes, with each item in the list being a tuple of start and end points
+        '''
+        if obstacle_face not in ['N', 'S', 'E', 'W']:
+            raise ValueError('obstacle_face must be N/S/E/W')
+
+        boundary, obstacles_in_axis = cls._get_boundary_and_obstacles_in_line(target, obstacle_face, other_obstacles)
+        valid_points_in_axis = [target, boundary]
+        
+        for i in obstacles_in_axis:
+            valid_points_in_axis.append(cls.move_one(i, obstacle_face))
+            valid_points_in_axis.append(cls.move_one(i, cls._opposite_direction(obstacle_face)))
+
+        fixed_x = obstacle_face in ['N', 'S']
+        points_in_axis = sorted(valid_points_in_axis, key=lambda x: x[1] if fixed_x else x[0])
+
+        possible_axes = [
+            (points_in_axis[i], points_in_axis[i+1]) for i in range(len(points_in_axis)-1)
+            ]
+
+        # filter away possible axes that have length less than min 
+        if fixed_x:
+            possible_axes = [line for line in possible_axes if abs(line[0][1]-line[1][1]) >= min_axis_length ]
+        else:
+            possible_axes = [line for line in possible_axes if abs(line[0][0]-line[1][0]) >= min_axis_length ]
+
+        return possible_axes
+
+    @classmethod
+    def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, other_obstacles):
+        """ internal function used by generate_target_axis"""
+        tx, ty = target
+        if obstacle_face == 'N':
+            boundary = (tx,19)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (ox == tx and ty < oy <= 19)]
+        elif obstacle_face == 'S':
+            boundary = (tx, 0)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (ox == tx and 0 <= oy < ty)]
+        elif obstacle_face == 'E':
+            boundary = (19, ty)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (tx < ox <= 19 and oy == ty)]
+        elif obstacle_face == 'W':
+            boundary = (0, ty)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (0 <= ox < tx and oy == ty)]
+        else:
+            raise ValueError("Unknown direction")
+
+        return boundary, obstacles_in_axis
+        
+    @classmethod
+    def reorient(cls, current_coords, current_facing, final_facing, obstacles):
+        """Get a path that reorients the agent in a new direction on the same point
+        ie. find a path with the same starting and ending location that has a final facing same as the given arg
+        """
+
+        #TODO what if obstacle in orient path
+        agent = cls.agent
+        valid_facings = agent.valid_facings
+
+        if current_facing not in valid_facings:
+            raise ValueError(f'{current_facing=} is not valid in valid facings of agent')
+        if final_facing not in valid_facings:
+            raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
+
+        result = {'final_facing': None, 'path':[], 'moves':None}
+
+        def _general_reorient(moves:typing.Union[str,tuple[int,int]]):
+            nonlocal result
+            facing = current_facing
+            coords = current_coords
+            path = []
+
+            for move in moves:
+                (dx,dy), new_facing = agent.move_w_facing(facing, move)
+                cx,cy = coords
+
+                #TODO obstacle avoidance needed in reorient function?
+                # path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, dx, dy)
+                # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
+                #                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
+                # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(final_x, final_y):
+                #     continue
+
+                coords = cx+dx, cy+dy
+                facing = new_facing
+                path.append(coords)
+
+            result['path'] = path
+            result['moves'] = moves
+            result['final_facing'] = final_facing
+            return result
+            
+        if current_facing == final_facing:
+            result['final_facing'] = current_facing
+            return result
+
+        assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
+        if current_facing == 'N':
+            if final_facing == 'S':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+
+        elif current_facing == 'S':
+            if final_facing == 'N':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+        
+        elif current_facing == 'E':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+
+        elif current_facing == 'W':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+        
+        assert False, 'Function should return a value before this point'
+
     @classmethod
     def generate_agent_exclusion_radius(cls, x,y):
         # TODO add in code from occupied_by_robot in here
@@ -539,6 +651,32 @@ class Pathfinder:
 
         return instructions
 
+    @classmethod
+    def move_one(cls, coords, direction, step=1):
+        cx,cy = coords
+        if direction == 'N':
+            return (cx,cy+1)
+        elif direction == 'S':
+            return (cx,cy-1)
+        elif direction == 'E':
+            return (cx+1,cy)
+        elif direction == 'W':
+            return (cx-1,cy)
+        else:
+            raise ValueError("Unknown direction")
+
+    @classmethod
+    def _opposite_direction(cls, direction):
+        if direction == 'N':
+            return 'S'
+        elif direction == 'S':
+            return 'N'
+        elif direction == 'E':
+            return 'W'
+        elif direction == 'W':
+            return 'E'
+        else:
+            raise ValueError("Unknown direction")
 
     @classmethod
     def points_are_out_of_bounds(cls, x, y):
