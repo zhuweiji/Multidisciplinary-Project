@@ -113,6 +113,27 @@ class Robot:
         return move_coords, final_facing
 
 
+#TODO integrate pathfinding to target axis, then reorient and move to target
+"""
+    generate target (phototaking point)
+    generate target axis
+    find best target axis
+    pathfind to best target axis
+    if direction is correct ( opp to obstacle_face)
+        pathfind to target
+    otherwise
+        if direction is 90/270 degree wrong
+            try one of the turns (r+r+fr/fl)
+            if no space for that try other (f+f+rr/rl)
+        if direction is obstacle face(totally wrong)
+            move forward n and pathfind back to axis(?)
+        once direction is correct
+            ptahfind to target
+
+
+"""
+# TODO integrate n-pathfind to target axis
+
 class Pathfinder:
     agent = Robot
     moveset = agent.moveset
@@ -490,7 +511,7 @@ class Pathfinder:
             raise ValueError("Unknown direction")
 
         return boundary, obstacles_in_axis
-        
+
     @classmethod
     def reorient(cls, current_coords, current_facing, final_facing, obstacles):
         """Get a path that reorients the agent in a new direction on the same point
