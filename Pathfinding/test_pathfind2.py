@@ -15,23 +15,23 @@ points_completed_updater = update_callback(f'Pathfinding completed for point')
 
 
 """test pathfinding to linear target"""
-# start = (3,7)
-# starting_face = 'N'
-# target_axis = [(0, 12), (7, 12)]
-# obstacles = [(3,9),(4,9),(5,9),(6,9)]
+start = (3,7)
+starting_face = 'N'
+target_axis = [(0, 12), (7, 12)]
+obstacles = [(3,9),(4,9),(5,9),(6,9)]
 
-# res = Pathfinder.find_path_to_linear_target(
-#     start=start, axis_start=target_axis[0], axis_end=target_axis[1], obstacles=obstacles, starting_face = starting_face,
-# )
+res = Pathfinder.find_path_to_linear_target(
+    start=start, axis_start=target_axis[0], axis_end=target_axis[1], obstacles=obstacles, starting_face = starting_face,
+)
 
-# path = res['path']
-# print(start, starting_face)
-# for move, coord in zip(res['moves'], res['path']):
-#     print(move, coord)
-# print(res['moves'])
-# print(res['final_facing'])
+path = res['path']
+print(start, starting_face)
+for move, coord in zip(res['moves'], res['path']):
+    print(move, coord)
+print(res['moves'])
+print(res['final_facing'])
 
-# TempGUI.plot_targets_and_path([start, *target_axis], path, obstacles, real_time=True, delay=0.1)
+TempGUI.plot_targets_and_path([start, *target_axis], path, obstacles, real_time=True, delay=0.1)
 """ end"""
 
 # """ test pathfind to n points"""

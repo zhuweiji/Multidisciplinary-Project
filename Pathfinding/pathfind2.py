@@ -35,74 +35,6 @@ class Robot:
     _facing: str
 
     @classmethod
-    def reorient(cls, current_coords, current_facing, final_facing):
-        """Get a path that reorients the agent in a new direction on the same point
-        ie. find a path with the same starting and ending location that has a final facing same as the given arg
-        """
-        if current_facing not in cls.valid_facings:
-            raise ValueError(f'{current_facing=} is not valid in valid facings of agent')
-        if final_facing not in cls.valid_facings:
-            raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
-
-        result = {'final_facing': None, 'path':[], 'moves':None}
-
-        def _general_reorient(moves):
-            nonlocal result
-            facing = current_facing
-            coords = current_coords
-            path = []
-            for move in moves:
-                (dx,dy), new_facing = cls.move_w_facing(facing, move)
-                cx,cy = coords
-                coords = cx+dx, cy+dy
-                facing = new_facing
-                path.append(coords)
-
-            result['path'] = path
-            result['moves'] = moves
-            result['final_facing'] = final_facing
-            return result
-            
-        if current_facing == final_facing:
-            result['final_facing'] = current_facing
-            return result
-
-        assert cls.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
-        if current_facing == 'N':
-            if final_facing == 'S':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-
-        elif current_facing == 'S':
-            if final_facing == 'N':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-        
-        elif current_facing == 'E':
-            if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'W':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-            elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-
-        elif current_facing == 'W':
-            if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
-            elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
-            elif final_facing == 'E':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
-        
-        assert False, 'Function should return a value before this point'
-
-    @classmethod
     def move_w_facing(cls, facing, command: typing.Union[str, tuple[int]]) -> tuple[tuple[int,int], str]:
         if not (command in cls.moveset or command in cls.moveset.values()):
             raise ValueError(f'Command must be in the moveset of the robot')
@@ -188,6 +120,79 @@ class Pathfinder:
     OBSTACLE_SIZE = (1, 1)
     ROBOT_SIZE = (3, 3)
     ARENA_SIZE = (19, 19)
+
+
+    @classmethod
+    def reorient(cls, current_coords, current_facing, final_facing):
+        """Get a path that reorients the agent in a new direction on the same point
+        ie. find a path with the same starting and ending location that has a final facing same as the given arg
+        """
+        agent = cls.agent
+        valid_facings = agent.valid_facings
+
+        if current_facing not in valid_facings:
+            raise ValueError(f'{current_facing=} is not valid in valid facings of agent')
+        if final_facing not in valid_facings:
+            raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
+
+        result = {'final_facing': None, 'path':[], 'moves':None}
+
+        def _general_reorient(moves):
+            nonlocal result
+            facing = current_facing
+            coords = current_coords
+            path = []
+            for move in moves:
+                (dx,dy), new_facing = agent.move_w_facing(facing, move)
+                cx,cy = coords
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
+                coords = cx+dx, cy+dy
+                facing = new_facing
+                path.append(coords)
+
+            result['path'] = path
+            result['moves'] = moves
+            result['final_facing'] = final_facing
+            return result
+            
+        if current_facing == final_facing:
+            result['final_facing'] = current_facing
+            return result
+
+        assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
+        if current_facing == 'N':
+            if final_facing == 'S':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+
+        elif current_facing == 'S':
+            if final_facing == 'N':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+        
+        elif current_facing == 'E':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'W':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+
+        elif current_facing == 'W':
+            if final_facing == 'N':
+                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+            elif final_facing == 'S':
+                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+            elif final_facing == 'E':
+                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+        
+        assert False, 'Function should return a value before this point'
 
     @classmethod
     def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list,
@@ -356,19 +361,7 @@ class Pathfinder:
                 if (x, y) in visited_nodes:
                     continue
 
-                # all points that must be clear for the move to be possible
-                path_to_keep_clear = [(x, y)]
-
-                if dx != 0:                         # forward movements are straight forward, but L/R turns require n,n movements
-                    atomic_points = [
-                        # create a L shaped path the size of dx
-                        *[(cls._change_val(current_x, i, dx > 0), current_y+dy)
-                          for i in range(1, abs(dx))],
-                        *[(current_x, cls._change_val(current_y, i, dy > 0))
-                          for i in range(1, abs(dy)+1)],
-                    ]
-                    path_to_keep_clear = [*path_to_keep_clear, *atomic_points]
-
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
 
@@ -437,14 +430,7 @@ class Pathfinder:
                 if (x,y) in visited_nodes:
                     continue
 
-                path_to_keep_clear = [(x,y)]          # all points that must be clear for the move to be possible
-                
-                if dx != 0:                         # forward movements are straight forward, but L/R turns require n,n movements
-                    atomic_points = [
-                        *[(cls._change_val(current_x, i, dx > 0), current_y+dy) for i in range(1, abs(dx))],     # create a L shaped path the size of dx
-                        *[(current_x, cls._change_val(current_y, i, dy > 0)) for i in range(1, abs(dy)+1)], 
-                        ]       
-                    path_to_keep_clear = [*path_to_keep_clear, *atomic_points]
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
 
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
@@ -475,6 +461,28 @@ class Pathfinder:
                 heapq.heappush(
                     queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
             
+    @classmethod
+    def generate_agent_exclusion_radius(cls, x,y):
+        # TODO add in code from occupied_by_robot in here
+        pass
+
+    @classmethod
+    def _generate_points_to_keep_clear_on_turn(cls, start_x, start_y, dx, dy):
+        final_x,final_y = start_x+dx, start_y+dy
+        path_to_keep_clear = [(final_x, final_y)]
+
+        assert all(y!=0 for x,y in cls.agent.moveset.values() if x!=0), 'Function was written when left/right turns have forward movement as well'
+
+        if dx != 0:                         # forward movements are straight forward, but L/R turns require n,n movements
+            atomic_points = [
+                # create a L shaped path the size of dx
+                *[(cls._change_val(start_x, i, dx > 0), start_y+dy)
+                    for i in range(1, abs(dx))],
+                *[(start_x, cls._change_val(start_y, i, dy > 0))
+                    for i in range(1, abs(dy)+1)],
+            ]
+            path_to_keep_clear = [*path_to_keep_clear, *atomic_points]
+        return path_to_keep_clear
 
     @classmethod
     def h_function(cls, src_x, src_y, tgt_x, tgt_y):
@@ -571,3 +579,4 @@ def tuple_swap(t: tuple):
         raise ValueError
     
     return (t[1], t[0])
+

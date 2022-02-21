@@ -10,7 +10,7 @@ def test_reorient():
         for end_facing in valid_facings:
             if start_facing == end_facing:
                 continue
-            res = Robot.reorient(start, start_facing, end_facing)
+            res = Pathfinder.reorient(start, start_facing, end_facing)
             path = res['path']
             final_facing = res['final_facing']
             obstacles = []

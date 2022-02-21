@@ -1,4 +1,4 @@
-from pathfind import Node
+from pathfind2 import Node
 
 class TempGUI:
     def plot_targets_and_path(targets: list, path: list, obstacles: list = [], real_time=False, delay=0.5):
@@ -30,9 +30,9 @@ class TempGUI:
         path_x = [get_x(node)+0.5 for node in path]
         path_y = [get_y(node)+0.5 for node in path]
 
-        x_edges = [0,0,19,19]
-        y_edges = [0,19,0,19]
-        plt.scatter(x_edges, y_edges, color='b')
+        x_edges = [0.5,0.5,19.5,19.5]
+        y_edges = [0.5,19.5,0.5,19.5]
+        plt.scatter(x_edges, y_edges, color='black')
         plt.xticks([i for i in range(0, 20)])
         plt.yticks([i for i in range(0, 20)])
         plt.grid(True, which='both')
