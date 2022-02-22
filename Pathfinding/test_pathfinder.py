@@ -90,14 +90,53 @@ def test_generate_target_axis():
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
     assert result == [((5, 0), (5, 11))]
 
+def test_move_w_facing():
+    true_data = [
+        ((0, 1), 'N', [(0, 1)]),
+        ((0, -1), 'N', [(0, -1)]),
+        ((2, 2), 'E', [(0, 1), (0, 2), (1, 2), (2, 2)]),
+        ((2, -2), 'W', [(0, -1), (0, -2), (1, -2), (2, -2)]),
+        ((-2, 2), 'W', [(0, 1), (0, 2), (-1, 2), (-2, 2)]),
+        ((-2, -2), 'E', [(0, -1), (0, -2), (-1, -2), (-2, -2)]),
+        ((0, -1), 'S', [(0, -1)]),
+        ((0, 1), 'S', [(0, 1)]),
+        ((-2, -2), 'W', [(0, -1), (0, -2), (-1, -2), (-2, -2)]),
+        ((-2, 2), 'E', [(0, 1), (0, 2), (-1, 2), (-2, 2)]),
+        ((2, -2), 'E', [(0, -1), (0, -2), (1, -2), (2, -2)]),
+        ((2, 2), 'W', [(0, 1), (0, 2), (1, 2), (2, 2)]),
+        ((1, 0), 'E', [(1, 0)]),
+        ((-1, 0), 'E', [(-1, 0)]),
+        ((2, -2), 'S', [(1, 0), (2, 0), (2, -1), (2, -2)]),
+        ((-2, -2), 'N', [(-1, 0), (-2, 0), (-2, -1), (-2, -2)]),
+        ((2, 2), 'N', [(1, 0), (2, 0), (2, 1), (2, 2)]),
+        ((-2, 2), 'S', [(-1, 0), (-2, 0), (-2, 1), (-2, 2)]),
+        ((-1, 0), 'W', [(-1, 0)]),
+        ((1, 0), 'W', [(1, 0)]),
+        ((-2, 2), 'N', [(-1, 0), (-2, 0), (-2, 1), (-2, 2)]),
+        ((2, 2), 'S', [(1, 0), (2, 0), (2, 1), (2, 2)]),
+        ((-2, -2), 'S', [(-1, 0), (-2, 0), (-2, -1), (-2, -2)]),
+        ((2, -2), 'N', [(1, 0), (2, 0), (2, -1), (2, -2)]),
+    ]
+    
+    index = 0
+    for direction in Robot.valid_facings:
+        for moveset in Robot.moveset:
+            result = Robot.move_w_facing(direction, moveset)
+            assert result == true_data[index]
+            index += 1
 
 def test_pathfind_to_axis_and_reorient():
     start = (0,0)
-    target = (10,2)
-    target_obstacle = (12,2)
     starting_face = 'N'
-    obstacle_face = 'W'
-    other_obstacles = [(4,2), (19,2), (5,10), (16,5), target_obstacle]
+
+    target_obstacle = (12,2)
+    obstacle_face = 'E'
+    target = Pathfinder.move_one(target_obstacle, obstacle_face, 2)
+
+    other_obstacles = [(4,2), (19,15), (5,10), (16,5), target_obstacle]
+    # other_obstacles = [target_obstacle]
+    # TempGUI.plot_targets_and_path(start=start,targets=[target], path=[], obstacles=other_obstacles, real_time=True)
+
 
     possible_target_axes = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
 
@@ -106,8 +145,14 @@ def test_pathfind_to_axis_and_reorient():
     
     path = result['path']
     moves = result['moves']
+    path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
-    TempGUI.plot_targets_and_path(start=start,targets=[target], path=path, obstacles=other_obstacles, real_time=False)
-    print(result)
+    TempGUI.plot_targets_and_path(start=start,targets=[target], path=path, path_faces=path_faces, obstacles=other_obstacles, real_time=True)
 
-test_pathfind_to_axis_and_reorient()
+if __name__ == "__main__":
+    test_pathfind_to_axis_and_reorient()
+    # pass
+
+
+# test_pathfind_to_axis_and_reorient()
+# print(Robot.moveset_atomic)

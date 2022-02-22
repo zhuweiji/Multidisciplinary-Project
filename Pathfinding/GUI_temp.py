@@ -1,7 +1,7 @@
 from pathfind2 import Node
 
 class TempGUI:
-    def plot_targets_and_path(start=(0,0), targets: list=[], path: list=[], obstacles: list = [],  real_time=False, delay=0.5):
+    def plot_targets_and_path(start=(0,0), targets: list=[], path: list=[], path_faces=[], obstacles: list = [],  real_time=False, delay=0.5):
         import matplotlib.pyplot as plt
 
         def get_x(node):
@@ -15,6 +15,7 @@ class TempGUI:
                 return node.y
             else:
                 return node[1]
+
         if not isinstance(start, tuple):
             raise ValueError('start node must be a tuple')
 
@@ -41,15 +42,28 @@ class TempGUI:
         plt.yticks([i for i in range(0, 20)])
         plt.grid(True, which='both')
         
-        for x,y in zip(path_x,path_y):
-            plt.scatter(x, y, color='b')
+        for index, (x,y) in enumerate(zip(path_x,path_y)):
+            if path_faces:
+                plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='green')
+            else:
+                plt.scatter(x, y, color='b')
             
             if real_time:
                 plt.pause(delay)
             if (x,y) in list(zip(targets_x, targets_y)):
-                plt.scatter(x, y, color='y')
+                plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='yellow')
                 if real_time:
                     plt.pause(delay*1.5)
 
         # ax.yaxis.get_major_locator().set_params(integer=True)
         plt.show()
+
+def get_degree(direction):
+    if direction == 'N':
+        return 0
+    elif direction == 'S':
+        return 180
+    elif direction == 'E':
+        return 270
+    elif direction == 'W':
+        return 90

@@ -21,6 +21,7 @@ class Node:
 @dataclass(eq=True, frozen=True)
 class Robot:
     turn_radius = 2
+    
     moveset = {
         'FORWARD':   (0, 1),
         'REVERSE':   (0, -1),
@@ -29,7 +30,28 @@ class Robot:
         'LEFT_FWD':  (-turn_radius, turn_radius),
         'LEFT_RVR':  (-turn_radius, -turn_radius),
     }         
-    moveset_i = {v:k for k,v in moveset.items()}            
+    moveset_i = {v:k for k,v in moveset.items()}    
+
+    moveset_atomic = (lambda turn_radius:{
+        'FORWARD':   [(0,1)],
+        'REVERSE':   [(0,-1)],
+        'RIGHT_FWD': [
+            *[(0,i) for i in range(1, turn_radius+1)],
+            *[(i, turn_radius) for i in range(1, turn_radius+1)],
+                ],
+        'RIGHT_RVR': [
+            *[(0,-i) for i in range(1, turn_radius+1)],
+            *[(i, -turn_radius) for i in range(1, turn_radius+1)],
+                ],
+        'LEFT_FWD':  [
+            *[(0, i) for i in range(1, turn_radius+1)],
+            *[(-i, turn_radius) for i in range(1, turn_radius+1)],
+                ],
+        'LEFT_RVR':  [
+            *[(0,-i) for i in range(1, turn_radius+1)],
+            *[(-i, -turn_radius) for i in range(1, turn_radius+1)],
+                ],
+    })(turn_radius) # IIFE to pass class var into list comp scope
 
     valid_facings = ['N', 'S', 'E', 'W']
 
@@ -51,8 +73,14 @@ class Robot:
             move_coords = command
             command = cls.moveset_i[move_coords]
         
+        points_to_keep_clear = []
         final_facing = None
+
         if facing == 'N':
+            translate_coords = lambda x: x
+            move_coords = translate_coords(move_coords)
+            points_to_keep_clear = [translate_coords(point) for point in cls.moveset_atomic[command]]
+
             if command == 'FORWARD':
                 final_facing = facing
             elif command == 'REVERSE':
@@ -65,8 +93,13 @@ class Robot:
                 final_facing = 'W'
             elif command == 'LEFT_RVR':
                 final_facing = 'E'
+
         if facing == 'S':
-            move_coords = tuple_multiply(move_coords, (-1, -1))
+            translate_coords = lambda x: tuple_multiply(x, (-1,-1))
+            move_coords = translate_coords(move_coords)
+            points_to_keep_clear = [translate_coords(point) for point in cls.moveset_atomic[command]]
+
+            # move_coords = tuple_multiply(move_coords, (-1, -1))
             if command == 'FORWARD':
                 final_facing = facing
             elif command == 'REVERSE':
@@ -81,8 +114,13 @@ class Robot:
                 final_facing = 'W'
             
         elif facing == 'E':
-            move_coords = tuple_swap(move_coords)
-            move_coords = tuple_multiply(move_coords, (1, -1))
+            translate_coords = lambda x: tuple_multiply(tuple_swap(x), (1,-1))
+            move_coords = translate_coords(move_coords)
+            points_to_keep_clear = [translate_coords(point) for point in cls.moveset_atomic[command]]
+
+            # move_coords = tuple_swap(move_coords)
+            # move_coords = tuple_multiply(move_coords, (1, -1))
+
             if command == 'FORWARD':
                 final_facing = facing
             elif command == 'REVERSE':
@@ -97,8 +135,12 @@ class Robot:
                 final_facing = 'S'
                 
         elif facing == 'W':
-            move_coords = tuple_swap(move_coords)
-            move_coords = tuple_multiply(move_coords, (-1, 1))
+            translate_coords = lambda x: tuple_multiply(tuple_swap(x), (-1, 1))
+            move_coords = translate_coords(move_coords)
+            points_to_keep_clear = [translate_coords(point) for point in cls.moveset_atomic[command]]
+
+            # move_coords = tuple_swap(move_coords)
+            # move_coords = tuple_multiply(move_coords, (-1, 1))
             if command == 'FORWARD':
                 final_facing = facing
             elif command == 'REVERSE':
@@ -112,7 +154,7 @@ class Robot:
             elif command == 'LEFT_RVR':
                 final_facing = 'N'
 
-        return move_coords, final_facing
+        return move_coords, final_facing, points_to_keep_clear
 
 
 #TODO integrate pathfinding to target axis, then reorient and move to target
@@ -291,7 +333,7 @@ class Pathfinder:
         result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
         tx, ty = cls.extract_pos(target)
 
-        # heapqueue structure - total cost f, current location, facing, path to target, move instructions to target
+        # heapqueue structure - total cost f, current location, path to target, move instructions to target
         queue = [(0, start, starting_face, [], [])]
         visited_nodes = set()
 
@@ -309,15 +351,13 @@ class Pathfinder:
             (current_x, current_y) = current_node
             visited_nodes.add(current_node)
             for movetype in cls.moveset:
-                # delta-x and y from a possible movement by the robot
-                (dx, dy), final_facing = cls.agent.move_w_facing(facing_direction, movetype)
-                # final position after the move
-                final_x, final_y = (current_x+dx, current_y+dy)
+                (dx, dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype) # delta-x and y from a possible movement by the robot
+                final_x, final_y = (current_x+dx, current_y+dy) # final position after the move
 
                 if (final_x, final_y) in visited_nodes:
                     continue
 
-                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
 
@@ -382,19 +422,16 @@ class Pathfinder:
             visited_nodes.add(current_node)
 
             for movetype in cls.moveset:   
-                (dx,dy), final_facing = cls.agent.move_w_facing(facing_direction, movetype)  # delta-x and y from a possible movement by the robot
+                (dx,dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype)  # delta-x and y from a possible movement by the robot
                 x, y = (current_x+dx, current_y+dy) # final position after the move
                 
                 if (x,y) in visited_nodes:
                     continue
 
-                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-                if (x,y) == (4,4):
-                    print(path_to_keep_clear,'\n',occupied_by_robot)
-                    print(any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y))
-                
+
                 if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y):
                     continue
                     
@@ -612,11 +649,11 @@ class Pathfinder:
             path = []
 
             for move in moves:
-                (dx,dy), new_facing = agent.move_w_facing(facing, move)
+                (dx,dy), new_facing, atomic_moves = agent.move_w_facing(facing, move)
                 cx,cy = coords
                 final_coords = cx+dx, cy+dy
 
-                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, dx, dy)
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, atomic_moves)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
                 if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(*final_coords):
@@ -723,22 +760,16 @@ class Pathfinder:
         pass
 
     @classmethod
-    def _generate_points_to_keep_clear_on_turn(cls, start_x, start_y, dx, dy):
-        final_x,final_y = start_x+dx, start_y+dy
-        path_to_keep_clear = [(final_x, final_y)]
+    def _generate_points_to_keep_clear_on_turn(cls, start_x, start_y, atomic_moves:list):
+        if not isinstance(atomic_moves, list):
+            raise ValueError('')
 
-        assert all(y!=0 for x,y in cls.agent.moveset.values() if x!=0), 'Function was written when left/right turns have forward movement as well'
-
-        if dx != 0:                         # forward movements are straight forward, but L/R turns require n,n movements
-            atomic_points = [
-                # create a L shaped path the size of dx
-                *[(cls._change_val(start_x, i, dx > 0), start_y+dy)
-                    for i in range(1, abs(dx))],
-                *[(start_x, cls._change_val(start_y, i, dy > 0))
-                    for i in range(1, abs(dy)+1)],
-            ]
-            path_to_keep_clear = [*path_to_keep_clear, *atomic_points]
-        return path_to_keep_clear
+        result = []
+        x,y = start_x, start_y
+        for (dx,dy) in atomic_moves:
+            x,y = x+dx, y+dy
+            result.append((x,y))
+        return result
 
     @classmethod
     def h_function(cls, src_x, src_y, tgt_x, tgt_y):
@@ -763,22 +794,26 @@ class Pathfinder:
         return (dist, nearest)
 
     @classmethod
-    def determine_final_facing(cls, initial_facing, move_instructions: list[str]):
+    def determine_all_faces_on_path(cls, initial_facing, move_instructions):
         try:
             if not (isinstance(move_instructions, list) and all(isinstance(i, str) for i in move_instructions)):
                 raise ValueError('move instructions must be a list of string instructions')
         except IndexError as E:
             raise ValueError('move instructions must be a list of string instructions')
-            
         
         if any(i not in cls.moveset for i in move_instructions):
             raise ValueError('move instructions do not correspond to available moves by agent')
-        
+
+        result = []        
         facing = initial_facing
         for i in move_instructions:
             facing = cls.agent.move_w_facing(facing, i)[1]
-        return facing
+            result.append(facing)
+        return result
 
+    @classmethod
+    def determine_final_facing(cls, initial_facing, move_instructions: list[str]):
+        return cls.determine_all_faces_on_path(initial_facing, move_instructions)[-1]
 
     @classmethod
     def convert_path_to_instructions(cls, path):
@@ -799,13 +834,13 @@ class Pathfinder:
     def move_one(cls, coords, direction, step=1):
         cx,cy = coords
         if direction == 'N':
-            return (cx,cy+1)
+            return (cx,cy+step)
         elif direction == 'S':
-            return (cx,cy-1)
+            return (cx,cy-step)
         elif direction == 'E':
-            return (cx+1,cy)
+            return (cx+step,cy)
         elif direction == 'W':
-            return (cx-1,cy)
+            return (cx-step,cy)
         else:
             raise ValueError("Unknown direction")
 
