@@ -161,10 +161,10 @@ class Robot:
 """
     generate target (phototaking point) ✓
     generate target axis                ✓
-    find best target axis
-        closest target axis
-        check any point is good
-    pathfind to best target axis
+    find best target axis               ✓
+        closest target axis             ✓
+        check any point is good         ✓
+    pathfind to best target axis        
     if direction is correct ( opp to obstacle_face)
         pathfind to target
     otherwise
@@ -175,8 +175,6 @@ class Robot:
             move forward n and pathfind back to axis(?)
         once direction is correct
             ptahfind to target
-
-
 """
 # TODO integrate n-pathfind to target axis
 
@@ -194,6 +192,52 @@ class Pathfinder:
     ROBOT_SIZE = (3, 3)
     ARENA_SIZE = (19, 19)
     ROBOT_TGT_DIST_FROM_IMG = 2
+
+    @classmethod
+    def get_path_betweeen_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
+        output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
+
+        if not len(targets) == len(obstacle_faces):
+            raise ValueError
+
+        for i in range(len(targets)):
+            total_path = []
+            total_moves = []
+
+            target, obstacle_face = targets[i], obstacle_faces[i]
+            possible_target_axes = Pathfinder.generate_possible_target_axes(target, obstacle_face, obstacles)
+            if i == 4:
+                print('HELOOOOOO\n\n\n')
+                print(f'{possible_target_axes=}')
+
+            facing_at_axis = Pathfinder._opposite_direction(obstacle_face)
+            result = Pathfinder.pathfind_to_axis_and_reorient(start, possible_target_axes, starting_face, facing_at_axis, obstacles)
+            print(f'{result=}')
+            total_path, total_moves, facing = result['path'], result['moves'], result['final_facing']
+            point_on_axis = total_path[-1]
+
+            along_axis_result = Pathfinder.find_path_to_point(point_on_axis, target, facing, obstacles)
+            print(f'{along_axis_result=}')
+
+            path, moves, facing = along_axis_result['path'], along_axis_result['moves'], along_axis_result['final_facing']
+            total_path = [*total_path, *path]
+            total_moves = [*total_moves, *moves]
+            print(f'{path=}')
+            print(f'{total_path=}')   
+            
+
+
+            # TODO probably pathfind to target
+            output['path'].append(total_path)
+            output['moves'].append(total_moves)
+            output['final_facing'] = facing
+
+            # path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+            
+            starting_face = facing
+            start = total_path[-1]
+        return output
+
 
     @classmethod
     def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list,
@@ -330,8 +374,11 @@ class Pathfinder:
 
         if not obstacles:
             obstacles = []
-        result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
+        result = {'path':[], 'distance':0, 'moves':[], 'final_facing':None}
         tx, ty = cls.extract_pos(target)
+
+        if start == target:
+            return result
 
         # heapqueue structure - total cost f, current location, path to target, move instructions to target
         queue = [(0, start, starting_face, [], [])]
@@ -370,9 +417,9 @@ class Pathfinder:
                 next_cost = h(final_x, final_y) + cost
 
                 if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
-                    next_cost += 1.8
-                elif movetype in ['RIGHT_RVR', 'LEFT_RVR']:
                     next_cost += 2
+                elif movetype in ['RIGHT_RVR', 'LEFT_RVR']:
+                    next_cost += 2.2
                 elif movetype == 'REVERSE':
                     next_cost += 0.1
 
@@ -498,7 +545,7 @@ class Pathfinder:
         return targets
         
     @classmethod
-    def generate_possible_target_axes(cls, target, obstacle_face, other_obstacles,
+    def generate_possible_target_axes(cls, target, obstacle_face:str, obstacles,
                              min_axis_length=4) -> list[tuple[tuple, tuple]]:
         '''	
         Generate a line X distance away from the image face of the obstacle
@@ -510,7 +557,7 @@ class Pathfinder:
             The point which the agent will stop at to attempt image recognition
         obstacle_face: str N/S/E/W
             The face of the obstacle on which the image is on
-        other_obstacles: list ( tuple(x,y) )
+        obstacles: list ( tuple(x,y) )
             The coordinates of all other obstacles which the agent cannot intrude onto
         
         Returns
@@ -521,7 +568,7 @@ class Pathfinder:
         if obstacle_face not in ['N', 'S', 'E', 'W']:
             raise ValueError('obstacle_face must be N/S/E/W')
 
-        boundary, obstacles_in_axis = cls._get_boundary_and_obstacles_in_line(target, obstacle_face, other_obstacles)
+        boundary, obstacles_in_axis = cls._get_boundary_and_obstacles_in_line(target, obstacle_face, obstacles)
         valid_points_in_axis = [target, boundary]
         
         for i in obstacles_in_axis:
@@ -571,9 +618,6 @@ class Pathfinder:
             end_point = path[-1]
             result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
     
-            if result_at_reorient:
-                print('Path to linear target completed successfully')
-
             if not result_at_reorient:
                 sx,sy = axis_start
                 ex,ey = axis_end
@@ -590,14 +634,9 @@ class Pathfinder:
                     result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
                     
                     if result_at_reorient:
-                        print('result to axis')
                         break
             
             if result_at_reorient:
-                print()
-                print(f'{result_to_axis=}')
-                print(f'{result_at_reorient=}')
-                print()
                 result['path'] = [*result_to_axis['path'], *result_at_reorient['path']]
                 
                 result['final_facing'] = result_at_reorient['final_facing']
@@ -606,21 +645,21 @@ class Pathfinder:
             
 
     @classmethod
-    def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, other_obstacles):
+    def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, obstacles):
         """ internal function used by generate_target_axis"""
         tx, ty = target
         if obstacle_face == 'N':
             boundary = (tx,19)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (ox == tx and ty < oy <= 19)]
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and ty < oy <= 19)]
         elif obstacle_face == 'S':
             boundary = (tx, 0)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (ox == tx and 0 <= oy < ty)]
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and 0 <= oy < ty)]
         elif obstacle_face == 'E':
             boundary = (19, ty)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (tx < ox <= 19 and oy == ty)]
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (tx < ox <= 19 and oy == ty)]
         elif obstacle_face == 'W':
             boundary = (0, ty)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in other_obstacles if (0 <= ox < tx and oy == ty)]
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (0 <= ox < tx and oy == ty)]
         else:
             raise ValueError("Unknown direction")
 
@@ -648,19 +687,19 @@ class Pathfinder:
             coords = current_coords
             path = []
 
+            cx,cy = coords
             for move in moves:
                 (dx,dy), new_facing, atomic_moves = agent.move_w_facing(facing, move)
-                cx,cy = coords
-                final_coords = cx+dx, cy+dy
+                cx,cy = cx+dx, cy+dy
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, atomic_moves)
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(*final_coords):
+                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(cx,cy):
                     return None
 
                 facing = new_facing
-                path.append(final_coords)
+                path.append((cx,cy))
 
             result['path'] = path
             result['moves'] = moves

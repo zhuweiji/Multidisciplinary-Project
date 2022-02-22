@@ -129,25 +129,24 @@ def test_pathfind_to_axis_and_reorient():
     start = (0,0)
     starting_face = 'N'
 
-    target_obstacle = (12,2)
-    obstacle_face = 'E'
-    target = Pathfinder.move_one(target_obstacle, obstacle_face, 2)
+    obstacle_faces = ['N','W','S', 'N' , 'W']
+    obstacles = [(4,2), (19,15), (5,10), (16,5), (12,4)]
 
-    other_obstacles = [(4,2), (19,15), (5,10), (16,5), target_obstacle]
-    # other_obstacles = [target_obstacle]
-    # TempGUI.plot_targets_and_path(start=start,targets=[target], path=[], obstacles=other_obstacles, real_time=True)
-
-
-    possible_target_axes = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
-
-    final_facing = Pathfinder._opposite_direction(obstacle_face)
-    result = Pathfinder.pathfind_to_axis_and_reorient(start, possible_target_axes, starting_face, final_facing, other_obstacles)
+    targets = [Pathfinder.move_one(obs, face, 2) for face, obs in zip(obstacle_faces, obstacles)]
+    result = Pathfinder.get_path_betweeen_points_directed(start, targets, obstacle_faces, obstacles)
     
     path = result['path']
     moves = result['moves']
+    print(len(path))
+
+    path = Pathfinder.flatten_output(path)
+    moves = Pathfinder.flatten_output(moves)
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
-    TempGUI.plot_targets_and_path(start=start,targets=[target], path=path, path_faces=path_faces, obstacles=other_obstacles, real_time=True)
+
+    # TempGUI.plot_targets_and_path(start=start,targets=targets, path=[], path_faces=[], obstacles=obstacles)
+
+    TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True)
 
 if __name__ == "__main__":
     test_pathfind_to_axis_and_reorient()
