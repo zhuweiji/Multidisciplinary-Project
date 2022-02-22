@@ -5,6 +5,8 @@ import itertools
 import math
 import typing
 import heapq
+
+from matplotlib import docstring
 import vectors 
 
 @dataclass(eq=True, frozen=True)
@@ -115,9 +117,11 @@ class Robot:
 
 #TODO integrate pathfinding to target axis, then reorient and move to target
 """
-    generate target (phototaking point)
-    generate target axis
+    generate target (phototaking point) ✓
+    generate target axis                ✓
     find best target axis
+        closest target axis
+        check any point is good
     pathfind to best target axis
     if direction is correct ( opp to obstacle_face)
         pathfind to target
@@ -133,6 +137,12 @@ class Robot:
 
 """
 # TODO integrate n-pathfind to target axis
+
+# TODO distance is not module-consistent right now -- A* functions add internal cost to right/left fwd/rvr turns to encourage straight lines
+# final distance is not this internal distance
+# other functions like pathfind to axis and reorient do not evaluate distance
+# if distance is required then standardizing what distance to output 
+# and providing a classmethod to evaluate distance based on moves might be required
 
 class Pathfinder:
     agent = Robot
@@ -347,6 +357,8 @@ class Pathfinder:
 
         Takes into account the direction the agent is facing, and the possible moves it can make
         Final facing direction can be any direction
+
+        result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
         '''
         if not obstacles:
             obstacles = []
@@ -377,10 +389,12 @@ class Pathfinder:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, dx, dy)
-
                 occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-                                        
+                if (x,y) == (4,4):
+                    print(path_to_keep_clear,'\n',occupied_by_robot)
+                    print(any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y))
+                
                 if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y):
                     continue
                     
@@ -401,12 +415,13 @@ class Pathfinder:
                         result['path'] = path_to_next
                         result['distance'] = next_cost
                         result['moves'] = movetypes_to_next
-                        result['finally'] = final_facing
+                        result['final_facing'] = final_facing
                         return result
 
                 heapq.heappush(
                     queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
-            
+    
+
     @classmethod
     def generate_photo_taking_points(cls, obstacles, faces):
         '''	
@@ -446,7 +461,7 @@ class Pathfinder:
         return targets
         
     @classmethod
-    def generate_target_axes(cls, target, obstacle_face, other_obstacles,
+    def generate_possible_target_axes(cls, target, obstacle_face, other_obstacles,
                              min_axis_length=4) -> list[tuple[tuple, tuple]]:
         '''	
         Generate a line X distance away from the image face of the obstacle
@@ -492,6 +507,68 @@ class Pathfinder:
         return possible_axes
 
     @classmethod
+    def pathfind_to_axis_and_reorient(cls, start, possible_target_axes: list[tuple[tuple[int, int], tuple[int, int]]],
+                            starting_face, final_facing, obstacles: list[tuple], min_axis_length=4):
+        '''	
+        Returns
+        -------
+            result = {'path':list, 'moves':list, 'final_facing': str}
+        '''
+        if not isinstance(possible_target_axes, list):
+            raise ValueError("Arg must be a list of possible target axes")
+        if not len(possible_target_axes[0]) == 2:
+            raise ValueError("Target axis must have one start and one end point")
+        if not len(possible_target_axes[0][0]) == 2:
+            raise ValueError('Coordinate of a point must contain only x,y value')
+
+        result = {'path':[], 'moves':[], 'final_facing':None}
+
+        # TODO base case if point is already in target axis
+        fixed_x = final_facing in ['N','S']
+
+        # try all the possible target axes, and find one where the reorientation can be done
+        for axis_start, axis_end in possible_target_axes:
+            result_to_axis = cls.find_path_to_linear_target(start, axis_start, axis_end, starting_face, obstacles)
+            path         = result_to_axis['path']
+            facing_at_axis = result_to_axis['final_facing']
+            end_point = path[-1]
+            result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
+    
+            if result_at_reorient:
+                print('Path to linear target completed successfully')
+
+            if not result_at_reorient:
+                sx,sy = axis_start
+                ex,ey = axis_end
+                if fixed_x:
+                    possible_other_points = [(sx,y) for y in range(sy, ey+1) if (sx, y) != end_point]
+                else:
+                    possible_other_points = [(x,sy) for x in range(sx, ex+1) if (x, sy) != end_point]
+
+                for point in possible_other_points:
+                    result_to_axis = cls.find_path_to_point(start, point, starting_face, obstacles)
+                    path         = result_to_axis['path']
+                    facing_at_axis = result_to_axis['final_facing']
+                    end_point = path[-1]
+                    result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
+                    
+                    if result_at_reorient:
+                        print('result to axis')
+                        break
+            
+            if result_at_reorient:
+                print()
+                print(f'{result_to_axis=}')
+                print(f'{result_at_reorient=}')
+                print()
+                result['path'] = [*result_to_axis['path'], *result_at_reorient['path']]
+                
+                result['final_facing'] = result_at_reorient['final_facing']
+                result['moves'] = [*result_to_axis['moves'], *result_at_reorient['moves']]
+                return result
+            
+
+    @classmethod
     def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, other_obstacles):
         """ internal function used by generate_target_axis"""
         tx, ty = target
@@ -513,12 +590,13 @@ class Pathfinder:
         return boundary, obstacles_in_axis
 
     @classmethod
-    def reorient(cls, current_coords, current_facing, final_facing, obstacles):
+    def reorient(cls, current_coords, current_facing, final_facing, obstacles) -> typing.Union[dict, None]:
         """Get a path that reorients the agent in a new direction on the same point
         ie. find a path with the same starting and ending location that has a final facing same as the given arg
+        result = {'final_facing': str, 'path': [], 'moves': []}
         """
+        result = {'final_facing': None, 'path': [], 'moves':[], 'distance': None}
 
-        #TODO what if obstacle in orient path
         agent = cls.agent
         valid_facings = agent.valid_facings
 
@@ -527,9 +605,7 @@ class Pathfinder:
         if final_facing not in valid_facings:
             raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
 
-        result = {'final_facing': None, 'path':[], 'moves':None}
-
-        def _general_reorient(moves:typing.Union[str,tuple[int,int]]):
+        def _general_reorient(moves:typing.Union[str,tuple[int,int]]) -> dict[str, typing.Any]:
             nonlocal result
             facing = current_facing
             coords = current_coords
@@ -538,59 +614,106 @@ class Pathfinder:
             for move in moves:
                 (dx,dy), new_facing = agent.move_w_facing(facing, move)
                 cx,cy = coords
+                final_coords = cx+dx, cy+dy
 
-                #TODO obstacle avoidance needed in reorient function?
-                # path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, dx, dy)
-                # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
-                #                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-                # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(final_x, final_y):
-                #     continue
+                path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, dx, dy)
+                occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
+                                                                   (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
+                if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(*final_coords):
+                    return None
 
-                coords = cx+dx, cy+dy
                 facing = new_facing
-                path.append(coords)
+                path.append(final_coords)
 
             result['path'] = path
             result['moves'] = moves
             result['final_facing'] = final_facing
+            # result['distance'] = cls.h_function()
+            result['distance'] = 0
             return result
+
+        def first_truthy(func, *args):
+            for arg in args:
+                result = func(arg)
+                if result:
+                    return result
+            return None
+
             
         if current_facing == final_facing:
             result['final_facing'] = current_facing
             return result
 
+        #TODO extract three main turns into their own functions to be unit-testable
+
         assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
         if current_facing == 'N':
             if final_facing == 'S':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['RIGHT_RVR', 'LEFT_FWD'],
+                        ['LEFT_RVR', 'RIGHT_FWD'],
+                )
             elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
+                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                )
             elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
+                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                )
 
         elif current_facing == 'S':
             if final_facing == 'N':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['RIGHT_RVR', 'LEFT_FWD'],
+                        ['LEFT_RVR', 'RIGHT_FWD'],
+                )
             elif final_facing == 'E':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
+                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                )
             elif final_facing == 'W':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
+                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                )
         
         elif current_facing == 'E':
             if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
+                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                )
             elif final_facing == 'W':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['RIGHT_RVR', 'LEFT_FWD'],
+                        ['LEFT_RVR', 'RIGHT_FWD'],
+                )
             elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
+                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                )
 
         elif current_facing == 'W':
             if final_facing == 'N':
-                return _general_reorient(['REVERSE', 'REVERSE', 'RIGHT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
+                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                )
             elif final_facing == 'S':
-                return _general_reorient(['REVERSE', 'REVERSE', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
+                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                )
             elif final_facing == 'E':
-                return _general_reorient(['RIGHT_RVR', 'LEFT_FWD'])
+                return first_truthy(_general_reorient, 
+                        ['RIGHT_RVR', 'LEFT_FWD'],
+                        ['LEFT_RVR', 'RIGHT_FWD'],
+                )
         
         assert False, 'Function should return a value before this point'
 
@@ -727,7 +850,6 @@ class Pathfinder:
         This function abstracts that to reduce the amount of code in the main function
         """
         return current + diff if increment else current - diff
-
 
 
 def tuple_multiply(t1, t2):
