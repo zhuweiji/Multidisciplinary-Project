@@ -6,7 +6,7 @@ def pathfind(obstacle_faces: list[str], obstacles: list[tuple[int, int]],
             algorithm=Pathfinder.get_path_betweeen_points_directed) -> dict[Union[Literal['path'], Literal['moves']]]:  
     
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
-    result = Pathfinder.get_path_betweeen_points_directed(start, targets, obstacle_faces, obstacles)
+    result = algorithm(start, targets, obstacle_faces, obstacles)
     
     print(len(result))
     return result
