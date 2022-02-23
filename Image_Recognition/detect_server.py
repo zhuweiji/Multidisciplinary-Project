@@ -153,6 +153,7 @@ class DetectServer:
         # Second-stage classifier (optional)
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
+        detect_array = []
         # Process predictions
         for i, det in enumerate(pred):  # per image
             seen += 1
@@ -174,6 +175,7 @@ class DetectServer:
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                     o = f"{self.names[int(c)]}"
+                    detect_array.append(o)
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
@@ -184,7 +186,7 @@ class DetectServer:
                     prob = conf.numpy()
                     prob = np.round(prob,2)
                     send_rpi_id(img_id[self.names[c]] + " " + str(prob))
-
+                    
                     annotator.box_label(xyxy, label, color=colors(c, True))
 
             im0 = annotator.result()
@@ -193,12 +195,13 @@ class DetectServer:
                 cv2.waitKey(0)
 
             # Save image if theres a detection
-            if o != 'null':
-                img_name = str(self.names[c]) + "_" +str(img_id[self.names[c]]) + "_" + str(prob) + ".jpg"
-                save_it = os.path.join(self.save_folder,img_name)
-                cv2.imwrite(save_it, im0)
+            for i in detect_array:
+                if o != 'null':
+                    img_name = str(self.names[c]) + "_" +str(img_id[self.names[c]]) + "_" + str(prob) + ".jpg"
+                    save_it = os.path.join(self.save_folder,img_name)
+                    cv2.imwrite(save_it, im0)
 
-
+    # send this array to RPI detect_array
 
 # This just calls the main function
 if __name__ == "__main__":
