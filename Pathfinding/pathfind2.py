@@ -59,7 +59,7 @@ class Robot:
     _facing: str
 
     @classmethod
-    def move_w_facing(cls, facing, command: typing.Union[str, tuple[int]]) -> tuple[tuple[int,int], str]:
+    def move_w_facing(cls, facing, command: typing.Union[str, tuple[int]]) -> tuple[tuple[int,int], str, list]:
         if not (command in cls.moveset or command in cls.moveset.values()):
             raise ValueError(f'Command must be in the moveset of the robot')
         
