@@ -12,11 +12,18 @@ def pathfind(obstacle_faces: list[str], obstacles: list[tuple[int, int]],
     print(len(result))
     return result
 
+
 def navigate_around_obstacle():
     # Robot.turn_radius
 
     one_side = ['REVERSE','REVERSE','REVERSE','REVERSE','RIGHT_FWD','FORWARD','LEFT_FWD','FORWARD','LEFT_FWD']
-    return one_side * 3
+    result = one_side * 3
+    
+    mapping = {'FORWARD':'F','REVERSE': 'R','LEFT_FWD': 'L','RIGHT_FWD': 'R'}
+    return [mapping[i] for i in result]
+
+
+
 
 def display_path_around_obstacle():
     facing = 'N'
@@ -33,4 +40,4 @@ def display_path_around_obstacle():
     print(path)
     TempGUI.plot_targets_and_path(start=start,targets=[(10, 13)], path=path, path_faces=faces, obstacles=[], real_time=True, delay=0.5)
 
-    
+print(navigate_around_obstacle())
