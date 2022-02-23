@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 import itertools
 import math
-import typing
 import heapq
 
 from matplotlib import docstring
@@ -59,7 +58,7 @@ class Robot:
     _facing: str
 
     @classmethod
-    def move_w_facing(cls, facing, command: typing.Union[str, tuple[int]]) -> tuple[tuple[int,int], str, list]:
+    def move_w_facing(cls, facing, command) -> tuple[tuple[int,int], str, list]:
         if not (command in cls.moveset or command in cls.moveset.values()):
             raise ValueError(f'Command must be in the moveset of the robot')
         
@@ -240,8 +239,8 @@ class Pathfinder:
 
 
     @classmethod
-    def get_path_between_points(cls, node_list: typing.List[Node], obstacles: list,
-                             update_callback=None, facing_direction_for_node_list: typing.List[str]=None,
+    def get_path_between_points(cls, node_list, obstacles: list,
+                             update_callback=None, facing_direction_for_node_list=None,
                              starting_facing='N'):
         '''	
         Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
@@ -292,8 +291,8 @@ class Pathfinder:
         return output
 
     @classmethod
-    def shortest_path_to_n_points(cls, start_node: Node, node_list: typing.List[Node], obstacles: list,
-             approximate=True, update_callback=None, facing_direction_for_node_list: typing.List[str]=None,
+    def shortest_path_to_n_points(cls, start_node: Node, node_list, obstacles: list,
+             approximate=True, update_callback=None, facing_direction_for_node_list=None,
              starting_facing='N'):
         '''	
         Given a unordered list of nodes, and a starting location, try to find the shortest path that will travel to all of the given nodes
@@ -666,7 +665,7 @@ class Pathfinder:
         return boundary, obstacles_in_axis
 
     @classmethod
-    def reorient(cls, current_coords, current_facing, final_facing, obstacles) -> typing.Union[dict, None]:
+    def reorient(cls, current_coords, current_facing, final_facing, obstacles):
         """Get a path that reorients the agent in a new direction on the same point
         ie. find a path with the same starting and ending location that has a final facing same as the given arg
         result = {'final_facing': str, 'path': [], 'moves': []}
@@ -681,7 +680,7 @@ class Pathfinder:
         if final_facing not in valid_facings:
             raise ValueError(f'{final_facing=} is not valid in valid facings of agent')
 
-        def _general_reorient(moves:typing.Union[str,tuple[int,int]]) -> dict[str, typing.Any]:
+        def _general_reorient(moves):
             nonlocal result
             facing = current_facing
             coords = current_coords
@@ -905,7 +904,7 @@ class Pathfinder:
         return [item for sublist in listoflists for item in sublist]
     
     @staticmethod
-    def extract_pos(node: typing.Union[Node, typing.Tuple]):
+    def extract_pos(node):
         """ Gets the x and y coordinates of an object whose type could be either Node or a simple Tuple """
         if isinstance(node, Node):
             x, y = node.get_pos()
