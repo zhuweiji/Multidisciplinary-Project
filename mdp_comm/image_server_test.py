@@ -1,5 +1,5 @@
 import time
-from mdp_comm.image import ImageServer
+from mdp_comm.image.image_server import ImageServer
 
 i = ImageServer(print)
 i.run()

@@ -1,5 +1,5 @@
 import time
-from mdp_comm.bluetooth import BluetoothServer
+from mdp_comm.bluetooth.bluetooth_server import BluetoothServer
 
 b = BluetoothServer(print)
 b.run()
