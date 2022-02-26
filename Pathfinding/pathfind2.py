@@ -198,6 +198,11 @@ class Pathfinder:
     ROBOT_TGT_DIST_FROM_IMG = 20
 
     @classmethod
+    def shortest_path_between_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
+        # shortest path between n points
+        raise NotImplementedError
+
+    @classmethod
     def get_path_betweeen_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
@@ -613,6 +618,8 @@ class Pathfinder:
         # try all the possible target axes, and find one where the reorientation can be done
         for axis_start, axis_end in possible_target_axes:
             result_to_axis = cls.find_path_to_linear_target(start, axis_start, axis_end, starting_face, obstacles)
+
+        
             path         = result_to_axis['path']
             facing_at_axis = result_to_axis['final_facing']
             end_point = path[-1]
@@ -726,73 +733,85 @@ class Pathfinder:
 
         #TODO extract three main turns into their own functions to be unit-testable
 
-        assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
+        # assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
+        TURN_RADIUS = agent.turn_radius
+
+        AXIS_REVERSE_1 = ['RIGHT_RVR', 'LEFT_FWD'] 
+        AXIS_REVERSE_2 = ['LEFT_RVR', 'RIGHT_FWD']
+
+        AXIS_RIGHT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['RIGHT_FWD']
+        AXIS_RIGHT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['LEFT_RVR']
+
+        AXIS_LEFT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['LEFT_FWD']
+        AXIS_LEFT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['RIGHT_RVR']
+
+        
         if current_facing == 'N':
             if final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        ['RIGHT_RVR', 'LEFT_FWD'],
-                        ['LEFT_RVR', 'RIGHT_FWD'],
+                        AXIS_REVERSE_1,
+                        AXIS_REVERSE_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
-                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                        AXIS_RIGHT_TURN_1,
+                        AXIS_RIGHT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
-                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                        AXIS_LEFT_TURN_1,
+                        AXIS_LEFT_TURN_2,
                 )
 
         elif current_facing == 'S':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        ['RIGHT_RVR', 'LEFT_FWD'],
-                        ['LEFT_RVR', 'RIGHT_FWD'],
+                        AXIS_REVERSE_1,
+                        AXIS_REVERSE_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
-                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                        AXIS_LEFT_TURN_1,
+                        AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
-                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                        AXIS_RIGHT_TURN_1,
+                        AXIS_RIGHT_TURN_2,
                 )
         
         elif current_facing == 'E':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
-                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                        AXIS_LEFT_TURN_1,
+                        AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        ['RIGHT_RVR', 'LEFT_FWD'],
-                        ['LEFT_RVR', 'RIGHT_FWD'],
+                        AXIS_REVERSE_1,
+                        AXIS_REVERSE_2,
                 )
             elif final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
-                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                        AXIS_RIGHT_TURN_1,
+                        AXIS_RIGHT_TURN_2,
                 )
 
         elif current_facing == 'W':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'RIGHT_FWD'],
-                        ['FORWARD', 'FORWARD', 'LEFT_RVR'],
+                        AXIS_RIGHT_TURN_1,
+                        AXIS_RIGHT_TURN_2,
                 )
             elif final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        ['REVERSE', 'REVERSE', 'LEFT_FWD'],
-                        ['FORWARD', 'FORWARD', 'RIGHT_RVR'],
+                        AXIS_LEFT_TURN_1,
+                        AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        ['RIGHT_RVR', 'LEFT_FWD'],
-                        ['LEFT_RVR', 'RIGHT_FWD'],
+                        AXIS_REVERSE_1,
+                        AXIS_REVERSE_2,
                 )
         
         assert False, 'Function should return a value before this point'

@@ -173,7 +173,7 @@ def test_pathfind_to_axis_and_reorient():
     # print(f'{moves=}')
     print(result)
 # 
-    # TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=1)
+    TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=2)
 
 if __name__ == "__main__":
     # test_robot_moveset()
