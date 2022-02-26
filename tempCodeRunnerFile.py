@@ -1,1 +1,0 @@
-strings_match(key, 'test')
