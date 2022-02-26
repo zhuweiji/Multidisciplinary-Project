@@ -2,6 +2,60 @@ import pytest
 from pathfind2 import Pathfinder, Robot
 from GUI_temp import TempGUI
 
+def test_robot_moveset():
+    """ Test that robot moveset and atomic moveset are defined properly"""
+    moveset = Robot.moveset
+    moveset_atomic = Robot.moveset_atomic
+
+    assert moveset and moveset_atomic, "Robot must have a moveset and atomic moveset"
+    assert all(k in moveset for k,v in moveset_atomic.items()
+        ), "The moves in moveset atomic should all be in the robots moveset"
+    assert all(k in moveset_atomic for k, v in moveset.items()
+        ), "The moves in moveset should all have their corresponding atomic movements"
+
+    assert all(isinstance(atom, tuple) for k, v in moveset_atomic.items()
+               for atom in v), "All atomic moves should be tuples"
+
+    assert all(len(v) > 0 for k,v in moveset_atomic.items()
+        ), "All moves should have atomic moves defined"
+    assert all(v[-1][0] == moveset[k][0] and v[-1][1] == moveset[k][1]
+        for k, v in moveset_atomic.items()
+    ), "End point of atomic moveset should be coords after move"
+
+
+def test_move_w_facing():
+    raise NotImplementedError
+    index = 0
+    for direction in Robot.valid_facings:
+        for moveset in Robot.moveset:
+            result = Robot.move_w_facing(direction, moveset)
+            index += 1
+
+
+def test_check_all_points_on_path_valid():
+    current_location = (100,100)
+    far_away = (200,200)
+    too_close = (101, 101)
+    
+    assert Pathfinder.check_all_points_on_path_valid(
+        [current_location], far_away)
+    assert not Pathfinder.check_all_points_on_path_valid(
+        [current_location], too_close)
+
+    path = [(100,100), (110, 100), (110, 110), (115, 110)]
+    
+    close_on_x = (100, 110+20+Pathfinder.ROBOT_TGT_DIST_FROM_IMG)
+    close_on_y = (115+20+Pathfinder.ROBOT_TGT_DIST_FROM_IMG, 100)
+    far_from_both = (200,200)
+    close_on_both = (115+Pathfinder.ROBOT_TGT_DIST_FROM_IMG -
+                     5, 110+Pathfinder.ROBOT_TGT_DIST_FROM_IMG-5)
+
+    assert Pathfinder.check_all_points_on_path_valid(path, [close_on_x, close_on_y, far_from_both])
+    assert not Pathfinder.check_all_points_on_path_valid(path, close_on_both)
+    assert not Pathfinder.check_all_points_on_path_valid(
+        path, [close_on_x, close_on_y, far_from_both, close_on_both])
+
+
 def test_find_path_to_linear_target():
     start = (3,7)
     starting_face = 'N'
@@ -90,41 +144,6 @@ def test_generate_target_axis():
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
     assert result == [((5, 0), (5, 11))]
 
-def test_move_w_facing():
-    true_data = [
-        ((0, 1), 'N', [(0, 1)]),
-        ((0, -1), 'N', [(0, -1)]),
-        ((2, 2), 'E', [(0, 1), (0, 2), (1, 2), (2, 2)]),
-        ((2, -2), 'W', [(0, -1), (0, -2), (1, -2), (2, -2)]),
-        ((-2, 2), 'W', [(0, 1), (0, 2), (-1, 2), (-2, 2)]),
-        ((-2, -2), 'E', [(0, -1), (0, -2), (-1, -2), (-2, -2)]),
-        ((0, -1), 'S', [(0, -1)]),
-        ((0, 1), 'S', [(0, 1)]),
-        ((-2, -2), 'W', [(0, -1), (0, -2), (-1, -2), (-2, -2)]),
-        ((-2, 2), 'E', [(0, 1), (0, 2), (-1, 2), (-2, 2)]),
-        ((2, -2), 'E', [(0, -1), (0, -2), (1, -2), (2, -2)]),
-        ((2, 2), 'W', [(0, 1), (0, 2), (1, 2), (2, 2)]),
-        ((1, 0), 'E', [(1, 0)]),
-        ((-1, 0), 'E', [(-1, 0)]),
-        ((2, -2), 'S', [(1, 0), (2, 0), (2, -1), (2, -2)]),
-        ((-2, -2), 'N', [(-1, 0), (-2, 0), (-2, -1), (-2, -2)]),
-        ((2, 2), 'N', [(1, 0), (2, 0), (2, 1), (2, 2)]),
-        ((-2, 2), 'S', [(-1, 0), (-2, 0), (-2, 1), (-2, 2)]),
-        ((-1, 0), 'W', [(-1, 0)]),
-        ((1, 0), 'W', [(1, 0)]),
-        ((-2, 2), 'N', [(-1, 0), (-2, 0), (-2, 1), (-2, 2)]),
-        ((2, 2), 'S', [(1, 0), (2, 0), (2, 1), (2, 2)]),
-        ((-2, -2), 'S', [(-1, 0), (-2, 0), (-2, -1), (-2, -2)]),
-        ((2, -2), 'N', [(1, 0), (2, 0), (2, -1), (2, -2)]),
-    ]
-    
-    index = 0
-    for direction in Robot.valid_facings:
-        for moveset in Robot.moveset:
-            result = Robot.move_w_facing(direction, moveset)
-            assert result == true_data[index]
-            index += 1
-
 def test_pathfind_to_axis_and_reorient():
     start = (0,0)
     starting_face = 'N'
@@ -154,10 +173,18 @@ def test_pathfind_to_axis_and_reorient():
     # print(f'{moves=}')
     print(result)
 # 
-    # TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=1)
+    TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=2)
 
 if __name__ == "__main__":
-    test_pathfind_to_axis_and_reorient()
+    # test_robot_moveset()
+    pass
+
+
+
+
+
+
+    # test_pathfind_to_axis_and_reorient()
     # pass
 
 
