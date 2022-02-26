@@ -13,10 +13,13 @@ def recv_msg(sock: socket.socket) -> T.Optional[bytes]:
     # Read message length and unpack it into an integer
     raw_msglen = _recvall(sock, 4)
     if not raw_msglen:
-        return None
+        raise IOError
     msglen = struct.unpack('>I', raw_msglen)[0]
     # Read the message data
-    return _recvall(sock, msglen)
+    data = _recvall(sock, msglen)
+    if not data:
+        raise IOError
+    return data
 
 def _recvall(sock: socket.socket, n: int) -> T.Optional[bytes]:
     # Helper function to recv n bytes or return None if EOF is hit

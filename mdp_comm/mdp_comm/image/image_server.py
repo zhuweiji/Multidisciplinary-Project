@@ -28,6 +28,9 @@ class ImageServer(BaseServer):
                 print("disconnected")
                 self._state = ConnectionState.DISCONNECTED
 
+    def is_connected(self):
+        return self._state == ConnectionState.CONNECTED
+
     def capture_and_send(self):
         stream = io.BytesIO()
         with picamera.PiCamera() as camera:
@@ -51,3 +54,5 @@ class ImageServer(BaseServer):
                 except IOError:
                     print("disconnected")
                     self._state = ConnectionState.DISCONNECTED
+                except Exception as e:
+                    print(e)

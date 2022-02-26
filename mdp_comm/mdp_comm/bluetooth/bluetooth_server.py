@@ -25,6 +25,9 @@ class BluetoothServer(BaseServer):
             profiles=[bluetooth.SERIAL_PORT_PROFILE],
         )
 
+    def is_connected(self):
+        return self._state == ConnectionState.CONNECTED
+
     def _send(self, msg):
         if self._state == ConnectionState.CONNECTED:
             try:
