@@ -2,6 +2,23 @@ import pytest
 from pathfind2 import Pathfinder, Robot
 from GUI_temp import TempGUI
 
+"""
+before end of lab
+run algo on rpi to see expected speed
+do image fov callibration
+
+    adding 3 point turn to the moveset
+    change resolution of pathfinding to 1cm x 1cm 
+        change obstacle collision checking for new resolution (logic change from any array interesction to absolute distance < collision radius or something)
+    
+
+    intergration of shortest path to 5 points
+    field of view calculation of target
+
+    test suite - kheegin
+
+"""
+
 def test_find_path_to_linear_target():
     start = (3,7)
     starting_face = 'N'
@@ -154,7 +171,7 @@ def test_pathfind_to_axis_and_reorient():
     # print(f'{moves=}')
     print(result)
 # 
-    # TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=1)
+    TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=2)
 
 if __name__ == "__main__":
     test_pathfind_to_axis_and_reorient()
