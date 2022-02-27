@@ -1,4 +1,4 @@
-from pathfind2 import Node
+from pathfind import Node
 
 class TempGUI:
     def plot_targets_and_path(start=(0,0), targets: list=[], path: list=[], path_faces=[], obstacles: list = [],  real_time=False, delay=0.5):

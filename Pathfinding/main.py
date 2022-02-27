@@ -1,4 +1,4 @@
-from pathfind2 import Pathfinder, Robot
+from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def pathfind(obstacle_faces: list[str], obstacles: list[tuple[int, int]],
