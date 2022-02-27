@@ -7,6 +7,37 @@ import heapq
 
 import vectors 
 
+"""
+TODO
+change resolution to 1cm                                                                                                                               ✔️
+    moveset + atomic + all ranges that loop over points                                                                                                ✔️
+    all cost functions must increase by 10x                                                                           
+    - not sure if there are other functions to change                                                                                                  
+add 3pt turn + atomic moveset                                                                                                                          ✔️
+    displacement 10x10 and overall space 30x30                                                                                                         ✔️
+    move w facing too                                                                                                                                  ✔️
+extract occupied by robot function to own method                                                                                                       ✔️
+obstacle collision change to mathematic instead of coords in array                                                                                     ✔️
+refactor and fix find target axis                                                                                                                      ✔️
+                                                                                                                                                       
+settle on how to determine pathfind to axis distance                                                                                                   ✔️
+    prev TODO - distance is not module-consistent right now -- A* functions add internal cost to right/left fwd/rvr turns to encourage straight lines  
+    final distance is not this internal distance                                                                                                       
+    other functions like pathfind to axis and reorient do not evaluate distance                                                                        
+    if distance is required then standardizing what distance to output                                                                                 
+    and providing a classmethod to evaluate distance based on moves might be required                                                                  
+                                                                                                                                                       
+    just use cost?                                                                                                                                     
+restrict moveset when moving from axis to target                                                                                                       ✔️
+    prev TODO allow pathfinding to be limited to a moveset arg                                                                                         
+                                                                                                                                                       
+add greedy pathfinding for directed pathfinding                                                                                                        
+"""
+
+# TODO calculate expected viewing radius along x for any y using tan(81.4) * Y * 2
+
+
+
 @dataclass(eq=True, frozen=True)
 class Node:
     x: int
@@ -185,17 +216,6 @@ class Robot:
         return move_coords, final_facing, points_to_keep_clear
 
 
-# TODO distance is not module-consistent right now -- A* functions add internal cost to right/left fwd/rvr turns to encourage straight lines
-# TODO allow pathfinding to be limited to a moveset arg
-# TODO calculate expected viewing radius along x for any y using tan(81.4) * Y * 2
-# TODO integrate n-pathfind to target axis
-# 
-
-# final distance is not this internal distance
-# other functions like pathfind to axis and reorient do not evaluate distance
-# if distance is required then standardizing what distance to output 
-# and providing a classmethod to evaluate distance based on moves might be required
-
 class Pathfinder:
     agent = Robot
     moveset = agent.moveset
@@ -204,18 +224,40 @@ class Pathfinder:
     ROBOT_SIZE = (30, 30)
     ARENA_SIZE = (190, 190)
     ROBOT_TGT_DIST_FROM_IMG = 20
+    ROBOT_DISTANCE_FROM_OBS = 10
 
     @classmethod
     def shortest_path_between_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
         # shortest path between n points
-        raise NotImplementedError
+        if not len(targets) == len(obstacle_faces):
+            raise ValueError("Number of obstacle faces and targets must match")
+
+        current_node = start
+        target_list, obstacle_faces_list = targets[:], obstacle_faces[:]
+
+        traversal_order = []
+        obstacle_face_order = []
+
+        while target_list:
+            closest_node = sorted(target_list, key=lambda node:Pathfinder.h_function(*current_node, *node))[0]
+            node_index = target_list.index(closest_node)
+            corresponding_face = obstacle_faces_list[node_index]
+
+            traversal_order.append(closest_node)
+            obstacle_face_order.append(corresponding_face)
+            current_node = closest_node
+
+            target_list.remove(closest_node)
+            obstacle_faces_list.remove(corresponding_face)
+        
+        return cls.get_path_betweeen_points_directed(start, traversal_order, obstacle_face_order, obstacles, starting_face)
 
     @classmethod
     def get_path_betweeen_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
         if not len(targets) == len(obstacle_faces):
-            raise ValueError
+            raise ValueError("Number of obstacle faces and targets must match")
 
         for i in range(len(targets)):
             total_path = []
@@ -226,151 +268,123 @@ class Pathfinder:
 
             facing_at_axis = Pathfinder._opposite_direction(obstacle_face)
             result = Pathfinder.pathfind_to_axis_and_reorient(start, possible_target_axes, starting_face, facing_at_axis, obstacles, target)
-            print(f'{result=}')
-            total_path, total_moves, facing = result['path'], result['moves'], result['final_facing']
+            total_path, total_moves, facing, distance = result['path'], result['moves'], result['final_facing'], result['distance']
             point_on_axis = total_path[-1]
 
-            along_axis_result = Pathfinder.find_path_to_point(point_on_axis, target, facing, obstacles)
-            print(f'{along_axis_result=}')
+            allowed_moves_along_axis = [
+                'FORWARD',
+                'REVERSE',
+                'RIGHT_FWD',
+                'LEFT_FWD',
+                '3PT_RIGHT',
+                '3PT_LEFT',
+                '3PT_TURN_AROUND',
+            ]
+
+            along_axis_result = Pathfinder.find_path_to_point(
+                point_on_axis, target, facing, obstacles, moveset=allowed_moves_along_axis)
 
             path, moves, facing = along_axis_result['path'], along_axis_result['moves'], along_axis_result['final_facing']
             total_path = [*total_path, *path]
             total_moves = [*total_moves, *moves]
-            print(f'{path=}')
-            print(f'{total_path=}')   
-            
 
-
-            # TODO probably pathfind to target
             output['path'].append(total_path)
             output['moves'].append(total_moves)
             output['final_facing'] = facing
+            output['distance'] += distance
 
-            # path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+
+            path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
             
             starting_face = facing
             start = total_path[-1]
         return output
 
-
     @classmethod
-    def get_path_between_points(cls, node_list, obstacles: list,
-                             update_callback=None, facing_direction_for_node_list=None,
-                             starting_facing='N'):
+    def pathfind_to_axis_and_reorient(cls, start, possible_target_axes: list[tuple[tuple[int, int], tuple[int, int]]],
+                                      starting_face, final_facing, obstacles: list[tuple], target,  min_axis_length=4):
         '''	
-        Returns a path using the internal Pathfinder get_path function that will travel between the given nodes, in the order they were given.
-        
-        Parameters
-        ----------
-        node_list: List(Nodes)
-            The nodes to travel to, in the order of travel
-        facing_direction_for_node_list: List(str)
-            List of direction that the agent should be facing at each target node
-        obstacles: List(Nodes or Tuples) - mixed Tuple and Nodes are allowed
-            A list of the location of obstacles, of which travel on is prohibited
-
         Returns
         -------
-        {
-            'path': List of n List(Tuples), for n targets
-            'distance': int
-        }
+            result = {'path':list, 'moves':list, 'final_facing': str}
         '''
-        if not facing_direction_for_node_list:
-            facing_direction_for_node_list = []
+        if not isinstance(possible_target_axes, list):
+            raise ValueError("Arg must be a list of possible target axes")
+        if not len(possible_target_axes[0]) == 2:
+            raise ValueError(
+                "Target axis must have one start and one end point")
+        if not len(possible_target_axes[0][0]) == 2:
+            raise ValueError(
+                'Coordinate of a point must contain only x,y value')
 
-        output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
+        result = {'path': [], 'moves': [], 'final_facing': None}
 
-        if facing_direction_for_node_list:
-            if len(facing_direction_for_node_list) == len(node_list):
-                raise ValueError('List of facing directions should be one less than the list of target nodes, because there is no target direction at the first node')
-        
-        facing_direction_at_end = None
+        # TODO base case if point is already in target axis
+        fixed_x = final_facing in ['N', 'S']
 
-        facing = starting_facing
-        for i in range(len(node_list)-1):
-            start_node, end_node = node_list[i], node_list[i+1]
-            if facing_direction_for_node_list:
-                facing_direction_at_end = facing_direction_for_node_list[i]
-            res = Pathfinder.find_path_to_point(start=start_node, target=end_node, obstacles=obstacles,
-                                                        update_callback=update_callback, direction_at_target=facing_direction_at_end,
-                                                        starting_face=facing)
-            if not res:
-                return output
-            output['path'].append(res['path'])
-            output['distance'] += res['distance']
-            output['final_facing'] = res['final_facing']
-            output['moves'].append(res['moves'])
-            facing = res['final_facing']
+        # if not any(point_within_straight_line(start, *axis) for axis in possible_target_axes):
+        # perform pathfinding to linear_target
+        # pass
 
-        return output
+        # problem with refactoring reorient outside pathfinding to linear target -
+        # if reorient on current point is not possible due to obs, then function fails
+        # original logic is to try pathfinding to other points
+        # maybe fixed by making pathfind to linear target return current pos and no moves
 
-    @classmethod
-    def shortest_path_to_n_points(cls, start_node: Node, node_list, obstacles: list,
-             approximate=True, update_callback=None, facing_direction_for_node_list=None,
-             starting_facing='N'):
-        '''	
-        Given a unordered list of nodes, and a starting location, try to find the shortest path that will travel to all of the given nodes
-        
-        Parameters
-        ----------
-        start_node: Node
-            The starting node from which the path will be started on the given
-        node_list: List(Node)
-            An unordered list of target nodes which will be visited. The order of visting is not guaranteed to be the same as the order in the list
-        facing_direction_for_node_list: List(str)
-            List of direction that the agent should be facing at each target node
-        obstacles: List(Tuple or Node)
-            A list of the location of obstacles, of which travel on is prohibited
+        for axis in possible_target_axes:
+            if point_within_straight_line(target, *axis):
+                possible_target_axes.remove(axis)
+                possible_target_axes.insert(0, axis)
+                break
 
-        Returns
-        -------
-        {
-            'path': List of n List(Tuples), for n targets
-            'distance': int
-        }
-        '''
-        if not facing_direction_for_node_list:
-            facing_direction_for_node_list = []
-        if len(node_list) == 0:
-            raise ValueError('Cannot find path if there are no target nodes')
+        # try all the possible target axes, and find one where the reorientation can be done
+        for axis_start, axis_end in possible_target_axes:
+            # try target axis that contains the target first
+            result_to_axis = cls.find_path_to_linear_target(
+                start, axis_start, axis_end, starting_face, obstacles)
 
-        if len(node_list) <= 3 or not approximate:
-            raise NotImplementedError('update code to follow path between two points function to use this function')
-            
-            temp_result = []
-            all_paths = list(itertools.permutations(node_list))
-            all_paths = [(start_node, *path) for path in all_paths]
-            for path in all_paths:
-                _ = cls.get_path_between_points(node_list=path, obstacles=obstacles, update_callback=update_callback, facing_direction_for_node_list=facing_direction_for_node_list)
-                temp_result.append((_['path'], _['distance']))
+            path = result_to_axis['path']
+            facing_at_axis = result_to_axis['final_facing']
+            end_point = path[-1]
+            result_at_reorient = cls.reorient(
+                end_point, facing_at_axis, final_facing, obstacles)
 
-            path, distance = sorted(temp_result, key=lambda x: x[1])[0]
-            return {'path': path, 'distance': distance}
+            if not result_at_reorient:
+                sx, sy = axis_start
+                ex, ey = axis_end
 
-        else:
-            traversal_order = [start_node]
-            facing_direction_in_traversal_order = []
-            
-            current_node = start_node
-            node_list = node_list[:]
+                #todo have to refactor possible other points to take into account new 1cm resolution
+                if fixed_x:
+                    possible_other_points = [(sx, y) for y in range(
+                        sy, ey+1, 10) if (sx, y) != end_point]
+                else:
+                    possible_other_points = [(x, sy) for x in range(
+                        sx, ex+1, 10) if (x, sy) != end_point]
 
-            while node_list:
-                closest_node = sorted(node_list, key=lambda node:Pathfinder.h_function(*current_node, *node))[0]
-                traversal_order.append(closest_node)
-                if facing_direction_for_node_list:
-                    facing_direction_in_traversal_order.append(facing_direction_for_node_list[node_list.index(closest_node)])
-                node_list.remove(closest_node)
-                current_node = closest_node
+                for point in possible_other_points:
+                    result_to_axis = cls.find_path_to_point(
+                        start, point, starting_face, obstacles)
+                    path = result_to_axis['path']
+                    facing_at_axis = result_to_axis['final_facing']
+                    end_point = path[-1]
+                    result_at_reorient = cls.reorient(
+                        end_point, facing_at_axis, final_facing, obstacles)
 
-            print(f'{traversal_order=}')
-            return cls.get_path_between_points(node_list=traversal_order, obstacles=obstacles, 
-                update_callback=update_callback, facing_direction_for_node_list=facing_direction_for_node_list,
-                starting_facing=starting_facing)
+                    if result_at_reorient:
+                        break
+
+            if result_at_reorient:
+                result['path'] = [*result_to_axis['path'],
+                                  *result_at_reorient['path']]
+
+                result['final_facing'] = result_at_reorient['final_facing']
+                result['moves'] = [*result_to_axis['moves'],
+                                   *result_at_reorient['moves']]
+                return result
 
     @classmethod
     def find_path_to_point(cls, start, target, starting_face='N', obstacles=None,
-                            direction_at_target=None, update_callback=None):
+                            direction_at_target=None, update_callback=None, moveset=None):
         '''	
         Find a reasonable path from starting location to destination location
         Pathfinding algorothm is A*
@@ -385,10 +399,19 @@ class Pathfinder:
         moves: list(str)
         final_facing: str
         '''
+        result = {'path':[], 'distance':0, 'moves':[], 'final_facing':None}
 
+        assert cls.ROBOT_SIZE == (30, 30)
+        assert cls.OBSTACLE_SIZE == (10, 10)
+        assert cls.moveset
+        
         if not obstacles:
             obstacles = []
-        result = {'path':[], 'distance':0, 'moves':[], 'final_facing':None}
+
+        moveset = moveset or cls.moveset
+        if not all(move in cls.moveset for move in moveset):
+            raise ValueError("Moves passed as arg must be in agent's moveset")
+
         tx, ty = cls.extract_pos(target)
 
         if start == target:
@@ -402,9 +425,6 @@ class Pathfinder:
         def h(argx,argy):
             return Pathfinder.h_function(argx,argy,tx,ty)
 
-        assert cls.ROBOT_SIZE == (3, 3)
-        assert cls.OBSTACLE_SIZE == (1, 1)
-        assert cls.moveset
 
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
@@ -419,12 +439,7 @@ class Pathfinder:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
-                # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
-                #                                                    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-
-                # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(final_x, final_y):
-                #     continue
-                if cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
+                if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     continue
 
                 path_to_next = [*path_to_current, (final_x, final_y)]
@@ -433,11 +448,16 @@ class Pathfinder:
                 next_cost = h(final_x, final_y) + cost
 
                 if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
-                    next_cost += 2
+                    next_cost += 1.8
                 elif movetype in ['RIGHT_RVR', 'LEFT_RVR']:
                     next_cost += 2.2
-                elif movetype == 'REVERSE':
-                    next_cost += 0.1
+
+                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    next_cost += 3
+                elif movetype == '3PT_TURN_AROUND':
+                    next_cost += 3.2
+
+
 
                 if (final_x == tx and final_y == ty):
                     if update_callback:
@@ -495,38 +515,49 @@ class Pathfinder:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
-                # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
-                                                                #    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-
-                # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(x, y):
-                    # continue
-                if cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
+                if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     continue
                     
                 path_to_next = [*path_to_current, (x, y)]
                 movetypes_to_next = [*movetypes_to_current, movetype]
 
-                next_cost = distance_heuristic(x,y) + cost # TODO add previous cost here ??
+                next_cost = distance_heuristic(x,y) + cost
                 
                 if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
                     next_cost += 1.8
                 elif movetype in ['RIGHT_RVR','LEFT_RVR']:
-                    next_cost += 2
-                elif movetype == 'REVERSE':
-                    next_cost += 0.1
+                    next_cost += 2.2
 
-                if (tx1 == tx2 and x == tx1 and y in range(ty1, ty2+1)) or \
-                    (ty1 == ty2 and y == ty1 and x in range(tx1, tx2+1)):
-                        result['path'] = path_to_next
-                        result['distance'] = next_cost
-                        result['moves'] = movetypes_to_next
-                        result['final_facing'] = final_facing
-                        return result
+                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    next_cost += 3
+                elif movetype == '3PT_TURN_AROUND':
+                    next_cost += 3.2
+
+                is_complete = False
+                same_x = tx1 == tx2
+                if same_x:
+                    d = abs(ty1 - ty2) / 2
+                    ty_mid = max(ty1, ty2) - d
+                    if point_within_rect(tx1, ty_mid, 5, d, x, y):
+                        is_complete = True
+                else:
+                    d = abs(tx1 - tx2) / 2
+                    tx_mid = max(tx1, tx2) - d
+                    if point_within_rect(tx_mid, ty1, d, 5, x, y):
+                        is_complete = True
+                
+                # if (tx1 == tx2 and x == tx1 and y in range(ty1, ty2+1)) or \
+                #     (ty1 == ty2 and y == ty1 and x in range(tx1, tx2+1)):
+                if is_complete:
+                    result['path'] = path_to_next
+                    result['distance'] = next_cost
+                    result['moves'] = movetypes_to_next
+                    result['final_facing'] = final_facing
+                    return result
 
                 heapq.heappush(
                     queue, (next_cost, (x, y), final_facing, path_to_next, movetypes_to_next))
     
-
     @classmethod
     def generate_photo_taking_points(cls, obstacles, faces):
         '''	
@@ -608,79 +639,6 @@ class Pathfinder:
         return possible_axes
 
     @classmethod
-    def pathfind_to_axis_and_reorient(cls, start, possible_target_axes: list[tuple[tuple[int, int], tuple[int, int]]],
-                                      starting_face, final_facing, obstacles: list[tuple], target,  min_axis_length=4):
-        '''	
-        Returns
-        -------
-            result = {'path':list, 'moves':list, 'final_facing': str}
-        '''
-        if not isinstance(possible_target_axes, list):
-            raise ValueError("Arg must be a list of possible target axes")
-        if not len(possible_target_axes[0]) == 2:
-            raise ValueError("Target axis must have one start and one end point")
-        if not len(possible_target_axes[0][0]) == 2:
-            raise ValueError('Coordinate of a point must contain only x,y value')
-
-        result = {'path':[], 'moves':[], 'final_facing':None}
-
-        # TODO base case if point is already in target axis
-        fixed_x = final_facing in ['N','S']
-
-        # if not any(point_within_straight_line(start, *axis) for axis in possible_target_axes):
-            # perform pathfinding to linear_target
-            # pass
-
-            # problem with refactoring reorient outside pathfinding to linear target -
-            # if reorient on current point is not possible due to obs, then function fails
-            # original logic is to try pathfinding to other points
-            # maybe fixed by making pathfind to linear target return current pos and no moves 
-
-        for axis in possible_target_axes:
-            if point_within_straight_line(target, *axis):
-                possible_target_axes.remove(axis)
-                possible_target_axes.insert(0, axis)
-                break
-
-        # try all the possible target axes, and find one where the reorientation can be done
-        for axis_start, axis_end in possible_target_axes:
-            # try target axis that contains the target first
-            result_to_axis = cls.find_path_to_linear_target(start, axis_start, axis_end, starting_face, obstacles)
-        
-            path         = result_to_axis['path']
-            facing_at_axis = result_to_axis['final_facing']
-            end_point = path[-1]
-            result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
-    
-            if not result_at_reorient:
-                sx,sy = axis_start
-                ex,ey = axis_end
-                
-                #todo have to refactor possible other points to take into account new 1cm resolution
-                if fixed_x:
-                    possible_other_points = [(sx,y) for y in range(sy, ey+1, 10) if (sx, y) != end_point]
-                else:
-                    possible_other_points = [(x,sy) for x in range(sx, ex+1, 10) if (x, sy) != end_point]
-
-                for point in possible_other_points:
-                    result_to_axis = cls.find_path_to_point(start, point, starting_face, obstacles)
-                    path         = result_to_axis['path']
-                    facing_at_axis = result_to_axis['final_facing']
-                    end_point = path[-1]
-                    result_at_reorient = cls.reorient(end_point, facing_at_axis, final_facing, obstacles)
-                    
-                    if result_at_reorient:
-                        break
-            
-            if result_at_reorient:
-                result['path'] = [*result_to_axis['path'], *result_at_reorient['path']]
-                
-                result['final_facing'] = result_at_reorient['final_facing']
-                result['moves'] = [*result_to_axis['moves'], *result_at_reorient['moves']]
-                return result
-            
-
-    @classmethod
     def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, obstacles):
         """ internal function used by generate_target_axis"""
         tx, ty = target
@@ -730,14 +688,8 @@ class Pathfinder:
                 (dx,dy), new_facing, atomic_moves = agent.move_w_facing(facing, move)
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, atomic_moves)
-                print(dx, dy, new_facing, atomic_moves)
-                print(path_to_keep_clear)
                 if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     return None
-                # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
-                                                                #    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
-                # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(cx,cy):
-                    # return None
 
                 cx,cy = cx+dx, cy+dy
                 facing = new_facing
@@ -877,8 +829,11 @@ class Pathfinder:
         for x,y in coord_list:
             if cls.points_are_out_of_bounds(x,y):
                 return False
-            if any(abs(ox-x) < cls.ROBOT_TGT_DIST_FROM_IMG and abs(oy-y) < cls.ROBOT_TGT_DIST_FROM_IMG for ox, oy in obstacles):
-                return False
+            
+            for (ox, oy) in obstacles:
+                if point_within_rect(x, y, cls.ROBOT_DISTANCE_FROM_OBS, cls.ROBOT_DISTANCE_FROM_OBS, ox, oy):
+                    return False
+
         return True
 
 
@@ -1038,3 +993,11 @@ def point_within_straight_line(pt1, lpt1, lpt2):
     else:
         return (px == lx1) and ly1 <= py <= ly2 or ly2 <= py <= ly1
 
+def point_within_rect(rect_x, rect_y, width, height, ox, oy):
+    ex1, ey1 = rect_x + width, rect_y + height
+    ex2, ey2 = rect_x - width, rect_y - height
+
+    if (((ex1 <= ox <= ex2) or (ex2 <= ox <= ex1)) and ((ey1 <= oy <= ey2) or (ey2 <= oy <= ey1))):
+        return True
+    
+    return False
