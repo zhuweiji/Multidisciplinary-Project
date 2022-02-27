@@ -201,7 +201,10 @@ class DetectServer:
                     save_it = os.path.join(self.save_folder,img_name)
                     cv2.imwrite(save_it, im0)
 
-    # send this array to RPI detect_array
+                    
+
+        # send this array to RPI detect_array
+        return detect_array
 
 # This just calls the main function
 if __name__ == "__main__":
@@ -209,7 +212,7 @@ if __name__ == "__main__":
 
     # Test 1
     
-    image_numpy = cv2.imread("C:/Users/Michael/Desktop/PRED/PRED/content/PRED/pic1.jpg")
+    image_numpy = cv2.imread("/home/aru/temp.jpg")
 
     server = DetectServer()
     server.detect(image_numpy)

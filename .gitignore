@@ -10,3 +10,4 @@ STM/**/Debug
 STM/**/Release
 Pathfinding/tempCodeRunnerFile.py
 tempCodeRunnerFile.python
+*.egg-info/
