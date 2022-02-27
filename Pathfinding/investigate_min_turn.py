@@ -1,5 +1,4 @@
-from tracemalloc import start
-from pathfind2 import Robot
+from pathfind import Robot
 import heapq
 from functools import total_ordering
 

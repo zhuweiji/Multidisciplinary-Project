@@ -18,13 +18,8 @@ class Node:
 
 @dataclass(eq=True, frozen=True)
 class Robot:
-    POINT_TURN_EXCLUSION_RADIUS = 30
-
     valid_facings = ['N', 'S', 'E', 'W']
 
-    pos: Node
-    _facing: str
-    
     moveset = {
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
@@ -39,10 +34,9 @@ class Robot:
     
     moveset_i = {v:k for k,v in moveset.items()}    
 
-
     # define a set of smaller movements that the robot must move through to perform a single movement
     # all points should not collide with obstacles
-    moveset_atomic = (lambda moveset, POINT_TURN_EXCLUSION_RADIUS: {
+    moveset_atomic = (lambda moveset: {
         'FORWARD':   [(0,10)],
         'REVERSE':   [(0,-10)],
         'RIGHT_FWD': [
@@ -66,22 +60,13 @@ class Robot:
               for i in range(10, abs(moveset['LEFT_RVR'][0])+1, 10)],
                 ],
 
-        "3PT_RIGHT":       [(dx if moveset['3PT_RIGHT'][0] > 0 else -dx,
-                             dy if moveset['3PT_RIGHT'][1] > 0 else -dy)
-                            for dx in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            for dy in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            ] + [moveset['3PT_RIGHT']],
-        "3PT_LEFT":        [(dx if moveset['3PT_LEFT'][0] > 0 else -dx,
-                             dy if moveset['3PT_LEFT'][1] > 0 else -dy)
-                            for dx in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            for dy in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            ] + [moveset['3PT_LEFT']],
-        "3PT_TURN_AROUND": [(dx if moveset['3PT_TURN_AROUND'][0] > 0 else -dx,
-                             dy if moveset['3PT_TURN_AROUND'][1] > 0 else -dy)
-                            for dx in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            for dy in range(-20, POINT_TURN_EXCLUSION_RADIUS+1, 10)
-                            ] + [moveset['3PT_TURN_AROUND']],
-    })(moveset, POINT_TURN_EXCLUSION_RADIUS)
+        "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
+                        (-10, 10), (10, -10)] + [moveset['3PT_RIGHT']],
+        "3PT_LEFT":   [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
+                        (-10, 10), (10, -10)] + [moveset['3PT_LEFT']],
+        "3PT_TURN_AROUND": [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
+                        (-10, 10), (10, -10)] + [moveset['3PT_TURN_AROUND']],
+    })(moveset)
 
     @classmethod
     def move_w_facing(cls, facing, command) -> tuple[tuple[int, int], str, list]:
@@ -118,6 +103,12 @@ class Robot:
                 final_facing = 'W'
             elif command == 'LEFT_RVR':
                 final_facing = 'E'
+            elif command == '3PT_RIGHT':
+                final_facing = 'E'
+            elif command == '3PT_LEFT':
+                final_facing = 'W'
+            elif command == '3PT_TURN_AROUND':
+                final_facing = 'S'
 
         if facing == 'S':
             translate_coords = lambda x: tuple_multiply(x, (-1,-1))
@@ -136,7 +127,13 @@ class Robot:
                 final_facing = 'E'
             elif command == 'LEFT_RVR':
                 final_facing = 'W'
-            
+            elif command == '3PT_RIGHT':
+                final_facing = 'W'
+            elif command == '3PT_LEFT':
+                final_facing = 'E'
+            elif command == '3PT_TURN_AROUND':
+                final_facing = 'N'
+
         elif facing == 'E':
             translate_coords = lambda x: tuple_multiply(tuple_swap(x), (1,-1))
             move_coords = translate_coords(move_coords)
@@ -154,7 +151,13 @@ class Robot:
                 final_facing = 'N'
             elif command == 'LEFT_RVR':
                 final_facing = 'S'
-                
+            elif command == '3PT_RIGHT':
+                final_facing = 'S'
+            elif command == '3PT_LEFT':
+                final_facing = 'N'
+            elif command == '3PT_TURN_AROUND':
+                final_facing = 'W'
+
         elif facing == 'W':
             translate_coords = lambda x: tuple_multiply(tuple_swap(x), (-1, 1))
             move_coords = translate_coords(move_coords)
@@ -172,9 +175,14 @@ class Robot:
                 final_facing = 'S'
             elif command == 'LEFT_RVR':
                 final_facing = 'N'
-
+            elif command == '3PT_RIGHT':
+                final_facing = 'N'
+            elif command == '3PT_LEFT':
+                final_facing = 'S'
+            elif command == '3PT_TURN_AROUND':
+                final_facing = 'E'
+                
         return move_coords, final_facing, points_to_keep_clear
-
 
 
 # TODO distance is not module-consistent right now -- A* functions add internal cost to right/left fwd/rvr turns to encourage straight lines
@@ -215,12 +223,9 @@ class Pathfinder:
 
             target, obstacle_face = targets[i], obstacle_faces[i]
             possible_target_axes = Pathfinder.generate_possible_target_axes(target, obstacle_face, obstacles)
-            if i == 4:
-                print('HELOOOOOO\n\n\n')
-                print(f'{possible_target_axes=}')
 
             facing_at_axis = Pathfinder._opposite_direction(obstacle_face)
-            result = Pathfinder.pathfind_to_axis_and_reorient(start, possible_target_axes, starting_face, facing_at_axis, obstacles)
+            result = Pathfinder.pathfind_to_axis_and_reorient(start, possible_target_axes, starting_face, facing_at_axis, obstacles, target)
             print(f'{result=}')
             total_path, total_moves, facing = result['path'], result['moves'], result['final_facing']
             point_on_axis = total_path[-1]
@@ -460,7 +465,8 @@ class Pathfinder:
         '''
         if not obstacles:
             obstacles = []
-        result = {'path':None, 'distance':None, 'moves':None, 'final_facing':None}
+
+        result = {'path':[], 'distance':0, 'moves':[], 'final_facing':starting_face}
 
         tx1, ty1 = cls.extract_pos(axis_start)
         tx2, ty2 = cls.extract_pos(axis_end)
@@ -468,6 +474,8 @@ class Pathfinder:
         if not ((tx1 == tx2) or (ty1 == ty2)):
             raise ValueError('Axis must be one dimensional')
         
+        if point_within_straight_line(start, axis_start, axis_end):
+            return result
         
         distance_heuristic = lambda x, y: cls._path_to_line((x,y), (tx1,ty1), (tx2,ty2))[0] # returns distance as first arg and closest point as second arg
 
@@ -551,7 +559,7 @@ class Pathfinder:
         
     @classmethod
     def generate_possible_target_axes(cls, target, obstacle_face:str, obstacles,
-                             min_axis_length=4) -> list[tuple[tuple, tuple]]:
+                             min_axis_length=None) -> list[tuple[tuple, tuple]]:
         '''	
         Generate a line X distance away from the image face of the obstacle
         The agent will route to this line, before aligning to the target
@@ -573,12 +581,14 @@ class Pathfinder:
         if obstacle_face not in ['N', 'S', 'E', 'W']:
             raise ValueError('obstacle_face must be N/S/E/W')
 
+        min_axis_length = min_axis_length or cls.ROBOT_TGT_DIST_FROM_IMG
+
         boundary, obstacles_in_axis = cls._get_boundary_and_obstacles_in_line(target, obstacle_face, obstacles)
         valid_points_in_axis = [target, boundary]
         
         for i in obstacles_in_axis:
-            valid_points_in_axis.append(cls.move_one(i, obstacle_face))
-            valid_points_in_axis.append(cls.move_one(i, cls._opposite_direction(obstacle_face)))
+            valid_points_in_axis.append(cls.move_one(i, obstacle_face, max(cls.OBSTACLE_SIZE)))
+            valid_points_in_axis.append(cls.move_one(i, cls._opposite_direction(obstacle_face), max(cls.OBSTACLE_SIZE)))
 
         fixed_x = obstacle_face in ['N', 'S']
         points_in_axis = sorted(valid_points_in_axis, key=lambda x: x[1] if fixed_x else x[0])
@@ -586,8 +596,10 @@ class Pathfinder:
         possible_axes = [
             (points_in_axis[i], points_in_axis[i+1]) for i in range(len(points_in_axis)-1)
             ]
-
         # filter away possible axes that have length less than min 
+        # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
+        possible_axes = [line for line in possible_axes if not any(point_within_straight_line(obs, *line) for obs in obstacles)]
+
         if fixed_x:
             possible_axes = [line for line in possible_axes if abs(line[0][1]-line[1][1]) >= min_axis_length ]
         else:
@@ -597,7 +609,7 @@ class Pathfinder:
 
     @classmethod
     def pathfind_to_axis_and_reorient(cls, start, possible_target_axes: list[tuple[tuple[int, int], tuple[int, int]]],
-                            starting_face, final_facing, obstacles: list[tuple], min_axis_length=4):
+                                      starting_face, final_facing, obstacles: list[tuple], target,  min_axis_length=4):
         '''	
         Returns
         -------
@@ -615,10 +627,25 @@ class Pathfinder:
         # TODO base case if point is already in target axis
         fixed_x = final_facing in ['N','S']
 
+        # if not any(point_within_straight_line(start, *axis) for axis in possible_target_axes):
+            # perform pathfinding to linear_target
+            # pass
+
+            # problem with refactoring reorient outside pathfinding to linear target -
+            # if reorient on current point is not possible due to obs, then function fails
+            # original logic is to try pathfinding to other points
+            # maybe fixed by making pathfind to linear target return current pos and no moves 
+
+        for axis in possible_target_axes:
+            if point_within_straight_line(target, *axis):
+                possible_target_axes.remove(axis)
+                possible_target_axes.insert(0, axis)
+                break
+
         # try all the possible target axes, and find one where the reorientation can be done
         for axis_start, axis_end in possible_target_axes:
+            # try target axis that contains the target first
             result_to_axis = cls.find_path_to_linear_target(start, axis_start, axis_end, starting_face, obstacles)
-
         
             path         = result_to_axis['path']
             facing_at_axis = result_to_axis['final_facing']
@@ -628,10 +655,12 @@ class Pathfinder:
             if not result_at_reorient:
                 sx,sy = axis_start
                 ex,ey = axis_end
+                
+                #todo have to refactor possible other points to take into account new 1cm resolution
                 if fixed_x:
-                    possible_other_points = [(sx,y) for y in range(sy, ey+1) if (sx, y) != end_point]
+                    possible_other_points = [(sx,y) for y in range(sy, ey+1, 10) if (sx, y) != end_point]
                 else:
-                    possible_other_points = [(x,sy) for x in range(sx, ex+1) if (x, sy) != end_point]
+                    possible_other_points = [(x,sy) for x in range(sx, ex+1, 10) if (x, sy) != end_point]
 
                 for point in possible_other_points:
                     result_to_axis = cls.find_path_to_point(start, point, starting_face, obstacles)
@@ -699,16 +728,18 @@ class Pathfinder:
             cx,cy = coords
             for move in moves:
                 (dx,dy), new_facing, atomic_moves = agent.move_w_facing(facing, move)
-                cx,cy = cx+dx, cy+dy
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(cx, cy, atomic_moves)
-                if not cls.check_all_points_on_path_valid([(cx, cy)], obstacles):
+                print(dx, dy, new_facing, atomic_moves)
+                print(path_to_keep_clear)
+                if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     return None
                 # occupied_by_robot = [(x+dx, y+dy) for (dx, dy) in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1),
                                                                 #    (-1, 1), (1, -1)] for (x, y) in path_to_keep_clear]  # space the robot occupies for every point on the path
                 # if any(i in obstacles for i in occupied_by_robot) or cls.points_are_out_of_bounds(cx,cy):
                     # return None
 
+                cx,cy = cx+dx, cy+dy
                 facing = new_facing
                 path.append((cx,cy))
 
@@ -734,84 +765,99 @@ class Pathfinder:
         #TODO extract three main turns into their own functions to be unit-testable
 
         # assert agent.turn_radius == 2, 'All hardcoded turns are only applicable for this turning radius'
-        TURN_RADIUS = agent.turn_radius
+        # TURN_RADIUS = agent.turn_radius
 
-        AXIS_REVERSE_1 = ['RIGHT_RVR', 'LEFT_FWD'] 
-        AXIS_REVERSE_2 = ['LEFT_RVR', 'RIGHT_FWD']
+        AXIS_REVERSE_0 = ['3PT_TURN_AROUND']
+        # AXIS_REVERSE_1 = ['RIGHT_RVR', 'LEFT_FWD'] 
+        # AXIS_REVERSE_2 = ['LEFT_RVR', 'RIGHT_FWD']
 
-        AXIS_RIGHT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['RIGHT_FWD']
-        AXIS_RIGHT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['LEFT_RVR']
+        AXIS_RIGHT_TURN_0 = ['3PT_RIGHT']
+        # AXIS_RIGHT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['RIGHT_FWD']
+        # AXIS_RIGHT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['LEFT_RVR']
 
-        AXIS_LEFT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['LEFT_FWD']
-        AXIS_LEFT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['RIGHT_RVR']
+        AXIS_LEFT_TURN_0 = ['3PT_LEFT']
+        # AXIS_LEFT_TURN_1 = ['REVERSE'] * TURN_RADIUS + ['LEFT_FWD']
+        # AXIS_LEFT_TURN_2 = ['FORWARD'] * TURN_RADIUS + ['RIGHT_RVR']
 
         
         if current_facing == 'N':
             if final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        AXIS_REVERSE_1,
-                        AXIS_REVERSE_2,
+                        AXIS_REVERSE_0,
+                        # AXIS_REVERSE_1,
+                        # AXIS_REVERSE_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        AXIS_RIGHT_TURN_1,
-                        AXIS_RIGHT_TURN_2,
+                        AXIS_RIGHT_TURN_0,
+                        # AXIS_RIGHT_TURN_1,
+                        # AXIS_RIGHT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        AXIS_LEFT_TURN_1,
-                        AXIS_LEFT_TURN_2,
+                        AXIS_LEFT_TURN_0,
+                        # AXIS_LEFT_TURN_1,
+                        # AXIS_LEFT_TURN_2,
                 )
 
         elif current_facing == 'S':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        AXIS_REVERSE_1,
-                        AXIS_REVERSE_2,
+                        AXIS_REVERSE_0,
+                        # AXIS_REVERSE_1,
+                        # AXIS_REVERSE_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        AXIS_LEFT_TURN_1,
-                        AXIS_LEFT_TURN_2,
+                        AXIS_LEFT_TURN_0,
+                        # AXIS_LEFT_TURN_1,
+                        # AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        AXIS_RIGHT_TURN_1,
-                        AXIS_RIGHT_TURN_2,
+                        AXIS_RIGHT_TURN_0,
+                        # AXIS_RIGHT_TURN_1,
+                        # AXIS_RIGHT_TURN_2,
                 )
         
         elif current_facing == 'E':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        AXIS_LEFT_TURN_1,
-                        AXIS_LEFT_TURN_2,
+                        AXIS_LEFT_TURN_0,
+                        # AXIS_LEFT_TURN_1,
+                        # AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'W':
                 return first_truthy(_general_reorient, 
-                        AXIS_REVERSE_1,
-                        AXIS_REVERSE_2,
+                        AXIS_REVERSE_0,
+                        # AXIS_REVERSE_1,
+                        # AXIS_REVERSE_2,
                 )
             elif final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        AXIS_RIGHT_TURN_1,
-                        AXIS_RIGHT_TURN_2,
+                        AXIS_RIGHT_TURN_0,
+                        # AXIS_RIGHT_TURN_1,
+                        # AXIS_RIGHT_TURN_2,
                 )
 
         elif current_facing == 'W':
             if final_facing == 'N':
                 return first_truthy(_general_reorient, 
-                        AXIS_RIGHT_TURN_1,
-                        AXIS_RIGHT_TURN_2,
+                        AXIS_RIGHT_TURN_0,
+                        # AXIS_RIGHT_TURN_1,
+                        # AXIS_RIGHT_TURN_2,
                 )
             elif final_facing == 'S':
                 return first_truthy(_general_reorient, 
-                        AXIS_LEFT_TURN_1,
-                        AXIS_LEFT_TURN_2,
+                        AXIS_LEFT_TURN_0,
+                        # AXIS_LEFT_TURN_1,
+                        # AXIS_LEFT_TURN_2,
                 )
             elif final_facing == 'E':
                 return first_truthy(_general_reorient, 
-                        AXIS_REVERSE_1,
-                        AXIS_REVERSE_2,
+                        AXIS_REVERSE_0,
+                        # AXIS_REVERSE_1,
+                        # AXIS_REVERSE_2,
                 )
         
         assert False, 'Function should return a value before this point'
@@ -975,4 +1021,20 @@ def tuple_swap(t: tuple):
         raise ValueError
     
     return (t[1], t[0])
+
+def point_within_straight_line(pt1, lpt1, lpt2):
+    px, py = pt1
+    lx1, ly1 = lpt1
+    lx2, ly2 = lpt2
+
+    if not (lx1 == lx2 or ly1 == ly2):
+        # function only looking for if points are within a straight (1-d) line
+        return False
+
+    same_y = ly1 == ly2
+
+    if same_y:
+        return (py == ly1) and (lx1 <= px <= lx2 or lx2 <= px <= lx1)
+    else:
+        return (px == lx1) and ly1 <= py <= ly2 or ly2 <= py <= ly1
 

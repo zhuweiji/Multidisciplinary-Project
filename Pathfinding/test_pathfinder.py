@@ -1,5 +1,5 @@
 import pytest
-from pathfind2 import Pathfinder, Robot
+from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def test_robot_moveset():
@@ -31,6 +31,23 @@ def test_move_w_facing():
             result = Robot.move_w_facing(direction, moveset)
             index += 1
 
+def test_reorient():
+    valid_facings = Robot.valid_facings
+    start = (50, 50)
+    obstacles = []
+
+    for start_facing in valid_facings:
+        for end_facing in valid_facings:
+            if start_facing == end_facing:
+                continue
+            res = Pathfinder.reorient(start, start_facing, end_facing, obstacles=obstacles)
+            print(start_facing, end_facing, res)
+            path = res['path']
+            final_facing = res['final_facing']
+            obstacles = []
+
+            assert end_facing == final_facing, 'Final facing of the robot is not where it should be'
+            # TempGUI.plot_targets_and_path([start],path=path, obstacles=obstacles, real_time=True, delay=0.5)
 
 def test_check_all_points_on_path_valid():
     current_location = (100,100)
@@ -57,16 +74,16 @@ def test_check_all_points_on_path_valid():
 
 
 def test_find_path_to_linear_target():
-    start = (3,7)
+    start = (30,70)
     starting_face = 'N'
-    target_axis = [(0, 12), (7, 12)]
-    obstacles = [(3,9),(4,9),(5,9),(6,9)]
+    target_axis = [(0, 120), (70, 120)]
+    obstacles = [(30,90),(40,90),(50,90),(60,90)]
 
-    res = Pathfinder.find_path_to_linear_target(
-        start=start, axis_start=target_axis[0], axis_end=target_axis[1], obstacles=obstacles, starting_face = starting_face,
-    )
+    # res = Pathfinder.find_path_to_linear_target(
+    #     start=start, axis_start=target_axis[0], axis_end=target_axis[1], obstacles=obstacles, starting_face = starting_face,
+    # )
     
-    raise NotImplementedError("This unit test has not been implemented")
+    raise NotImplementedError
     # path = res['path']
     # print(start, starting_face)
     # for move, coord in zip(res['moves'], res['path']):
@@ -74,75 +91,62 @@ def test_find_path_to_linear_target():
     # print(res['moves'])
     # print(res['final_facing'])
 
-
-def test_reorient():
-    valid_facings = Robot.valid_facings
-    start = (5,5)
-    obstacles = []
-
-    for start_facing in valid_facings:
-        for end_facing in valid_facings:
-            if start_facing == end_facing:
-                continue
-            res = Pathfinder.reorient(start, start_facing, end_facing, obstacles=obstacles)
-            path = res['path']
-            final_facing = res['final_facing']
-            obstacles = []
-
-            assert end_facing == final_facing, 'Final facing of the robot is not where it should be'
-            # TempGUI.plot_targets_and_path([start],path=path, obstacles=obstacles, real_time=True, delay=0.5)
-
-
 def test_generate_photo_taking_points():
     pass
 
 def test__get_boundary_and_obstacles_in_line():
-    target = (10,2)
+    target = (100,20)
     obstacle_face = 'W'
-    other_obstacles = [(1,2), (19,2), (11,2), (9,2)]
+    other_obstacles = [(10,20), (190,20), (110,20), (90,20)]
 
     # boundary, obstacles_in_line = Pathfinder._get_boundary_and_obstacles_in_line(target, obstacle_face, other_obstacles)
     # assert obstacles_in_line == [(1,2), (9,2)]
 
     obstacle_face = 'N'
-    other_obstacles = [(1,2), (10,5), (10,0), (10,18)]
+    other_obstacles = [(10,20), (100,50), (100,0), (100,180)]
     boundary, obstacles_in_line = Pathfinder._get_boundary_and_obstacles_in_line(target, obstacle_face, other_obstacles)
-    assert obstacles_in_line == [(10,5), (10,18)]
+    assert obstacles_in_line == [(100,50), (100,180)]
 
 
 def test_generate_target_axis():
-    target = (10,2)
-    obstacle_face = 'W'
-    other_obstacles = [(1,2), (19,2)]
-    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles) 
-    assert (i in [((2, 2), (9, 2)), ((11,2), (18,2))] for i in result)
-
-    target = (10,2)
-    obstacle_face = 'N'
-    other_obstacles = [(1,2), (10,5), (10,0), (10,18)]
-    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
-    assert result == [((10, 6), (10, 17))]
-
-    # test for target to boundary
-    target = (5,15)
+    target = (50,150)
     obstacle_face = 'S'
     other_obstacles = []
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
-    assert result == [((5,0),(5,15))]
 
+    assert result == [((50, 0), (50, 150))
+                      ], "test case from target to boundary"
+
+    target = (50,150)
+    obstacle_face = 'S'
+    other_obstacles = [(50,160)]
+    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
+
+    assert result == [
+        ((50, 0), (50, 150))], " test case: obstacle near target, but axis of the image facing is unobstructed to the boundary"
+
+    target = (100,20)
+    obstacle_face = 'W'
+    other_obstacles = [(10,20), (190,20)]
+    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles) 
     
-    target = (5,15)
-    obstacle_face = 'S'
-    other_obstacles = [(5,16)]
-    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
-    assert result == [((5,0),(5,15))]
+    assert (i in [((0, 20), (100,20))] for i in result), "test case: one obstacle in axis"
 
-    # test that for min axis length 4, possible axes less than that are discarded
-    target = (5,15)
-    obstacle_face = 'S'
-    other_obstacles = [(5,12)]
+    target = (100,20)
+    obstacle_face = 'N'
+    other_obstacles = [(10,20), (100,50), (100,0), (100,180)]
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
-    assert result == [((5, 0), (5, 11))]
+
+    assert result == [((100, 20), (100, 40)), ((100, 60), (100, 170))
+                      ], "test case: obstacle within min_axis_length distance away from target"
+    
+    target = (50,150)
+    obstacle_face = 'S'
+    other_obstacles = [(50,120), (50,170)]
+    result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
+    print(f'{result=}')
+
+    assert result == [((50, 0), (50, 110)), ((50, 130), (50, 150))], "Test case: obstacle within 40cm of target"
 
 def test_pathfind_to_axis_and_reorient():
     start = (0,0)
@@ -173,7 +177,7 @@ def test_pathfind_to_axis_and_reorient():
     # print(f'{moves=}')
     print(result)
 # 
-    TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=2)
+    # TempGUI.plot_targets_and_path(start=start,targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=2)
 
 if __name__ == "__main__":
     # test_robot_moveset()
