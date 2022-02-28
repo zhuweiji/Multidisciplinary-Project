@@ -50,8 +50,6 @@ refactor pathfinding to image to
 
 # TODO calculate expected viewing radius along x for any y using tan(81.4) * Y * 2
 
-
-
 @dataclass(eq=True, frozen=True)
 class Node:
     x: int
@@ -249,22 +247,26 @@ class Pathfinder:
 
         result = {'pathfinding':None, 'traversal_order': None}
         # shortest path between n points
+
         if not len(targets) == len(obstacle_faces):
             raise ValueError("Number of obstacle faces and targets must match")
 
         current_node = start
         target_list, obstacle_faces_list = targets[:], obstacle_faces[:]
 
+        coord_traversal_order = []
         traversal_order = []
         obstacle_face_order = []
 
         while target_list:
             closest_node = sorted(target_list, key=lambda node:Pathfinder.h_function(*current_node, *node))[0]
-            print(closest_node)
             node_index = target_list.index(closest_node)
             corresponding_face = obstacle_faces_list[node_index]
 
-            traversal_order.append(closest_node)
+            coord_traversal_order.append(closest_node)
+            original_index_of_target = targets.index(closest_node)
+            traversal_order.append(original_index_of_target)
+
             obstacle_face_order.append(corresponding_face)
             current_node = closest_node
             
@@ -273,7 +275,8 @@ class Pathfinder:
             obstacle_faces_list.pop(node_index)
         
         result['traversal_order'] = traversal_order
-        result['pathfinding'] = algorithm(start, traversal_order, obstacle_face_order, obstacles, starting_face)
+        result['pathfinding'] = algorithm(start=start, targets=coord_traversal_order, obstacle_faces=obstacle_face_order, 
+                                            obstacles=obstacles, starting_face=starting_face)
 
         return result
 
