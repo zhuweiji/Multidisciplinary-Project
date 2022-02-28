@@ -189,7 +189,7 @@ class DetectServer:
                     send_rpi_id(img_id[self.names[c]] + " " + str(prob))
                     
                     annotator.box_label(xyxy, label, color=colors(c, True))
-                    predict_array = predict_array.append(prob)
+                    predict_array.append(prob)
 
             im0 = annotator.result()
             if view_img:
