@@ -110,7 +110,7 @@ def foundImgId(obstacleNo, imgIdDetected):
   image_id = str (imgIdDetected)
   obstacle_number = str (obstacleNo)
 
-  command_to_change_image = "TARGET, " + "<" + obstacle_number + ">, <" + image_id + ">"
+  command_to_change_image = "TARGET " + "<" + obstacle_number + ">, <" + image_id + ">"
   
   print(command_to_change_image)
 
