@@ -285,6 +285,8 @@ class Pathfinder:
         """"""
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
+        LEEWAY_AROUND_TARGET = 5
+
         if not len(targets) == len(obstacle_faces):
             raise ValueError("Number of obstacle faces and targets must match")
 
@@ -330,7 +332,7 @@ class Pathfinder:
             while point_to_pathfind_to != furthest_point:
                 
                 # pathfind to point
-                to_point_result = cls.find_path_to_point((cx,cy), point_to_pathfind_to, facing, obstacles, final_point_leweway=5)
+                to_point_result = cls.find_path_to_point((cx,cy), point_to_pathfind_to, facing, obstacles, final_point_leweway=LEEWAY_AROUND_TARGET)
                 facing_at_point = to_point_result['final_facing']
                 
                 # execute reorient
@@ -351,6 +353,7 @@ class Pathfinder:
                     # output['moves'] = [*output['moves'], *moves_to_target]
 
                     output['distance'] = output['distance'] + distance_to_target
+                    output['final_facing'] = reorient_facing
                     facing = reorient_facing
                     cx, cy = path_to_target[-1]
 
