@@ -1,9 +1,8 @@
 from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
-def pathfind(obstacle_faces: list[str], obstacles_with_images, other_obstacles: list[tuple[int, int]],
+def pathfind(obstacle_faces: list[str], obstacle_ids:list[str], obstacles_with_images, other_obstacles: list[tuple[int, int]], 
             starting_face='N', start: tuple[int, int]=(0,0)):  
-    
     
     obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
@@ -12,7 +11,15 @@ def pathfind(obstacle_faces: list[str], obstacles_with_images, other_obstacles: 
     print(len(result))
     return result
 
+if __name__ == "__main__":
+    print('running')
+    start = (0, 0)
+    starting_face = 'N'
 
+    obstacle_faces = ['N', 'W', 'S', 'N', 'W']
+    obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
+
+    result = pathfind(start=start, obstacles_with_images=obstacles, obstacle_faces=obstacle_faces, other_obstacles=[], starting_face=starting_face)
 # def navigate_around_obstacle():
 #     # Robot.turn_radius
 
