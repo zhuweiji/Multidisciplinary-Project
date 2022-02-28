@@ -198,7 +198,7 @@ class DetectServer:
 
             # Save image if theres a detection
             for i in detect_array:
-                if o != 'null':
+                if o != 'null' and o != 'Target':
                     img_name = str(self.names[c]) + "_" +str(img_id[self.names[c]]) + "_" + str(prob) + ".jpg"
                     save_it = os.path.join(self.save_folder,img_name)
                     cv2.imwrite(save_it, im0)
