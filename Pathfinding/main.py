@@ -1,12 +1,13 @@
 from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
-def pathfind(obstacle_faces: list[str], obstacles: list[tuple[int, int]],
-            starting_face='N', start: tuple[int, int]=(0,0),
-            algorithm=Pathfinder.get_path_betweeen_points_directed):  
+def pathfind(obstacle_faces: list[str], obstacles_with_images, other_obstacles: list[tuple[int, int]],
+            starting_face='N', start: tuple[int, int]=(0,0)):  
     
+    
+    obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
-    result = algorithm(start, targets, obstacle_faces, obstacles)
+    result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
     
     print(len(result))
     return result
