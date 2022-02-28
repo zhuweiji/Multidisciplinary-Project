@@ -15,9 +15,12 @@ if __name__ == "__main__":
     start = (0, 0)
     starting_face = 'N'
 
-    obstacle_faces = ['N', 'W', 'S', 'N', 'W']
-    obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
-    obstacle_ids = ['0', '1', '2', '3', '4']
+    # obstacle_faces = ['N', 'W', 'S', 'N', 'W']
+    # obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
+    # obstacle_ids = ['0', '1', '2', '3', '4']
+
+    obstacles = [(80, 140)]
+    obstacle_faces = ['S']
 
     result = pathfind(start=start, obstacles_with_images=obstacles, obstacle_faces=obstacle_faces, other_obstacles=[], starting_face=starting_face)
     pf_results = result['pathfinding']
