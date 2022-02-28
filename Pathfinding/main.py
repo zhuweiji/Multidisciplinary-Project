@@ -7,7 +7,7 @@ def pathfind(obstacle_faces: list[str], obstacles_with_images, other_obstacles: 
     
     obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
-    result = Pathfinder.get_path_betweeen_points_directed(start, targets, obstacle_faces, obstacles, starting_face)
+    result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
     
     print(len(result))
     return result

@@ -73,8 +73,6 @@ def test_check_all_points_on_path_valid():
     moves = [(65, 90)]
     assert not Pathfinder.check_all_points_on_path_valid(moves, obstacles), "Path is too close to obstacle"
 
-test_check_all_points_on_path_valid()
-
 # def test_check_all_points_on_path_valid():
 #     current_location = (100,100)
 #     far_away = (200,200)
@@ -122,7 +120,7 @@ def test_generate_target_axis():
     other_obstacles = []
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
 
-    assert result == [((50, 0), (50, 150))
+    assert result == [((50, 10), (50, 150))
                       ], "test case from target to boundary"
 
     target = (50,150)
@@ -131,7 +129,7 @@ def test_generate_target_axis():
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
 
     assert result == [
-        ((50, 0), (50, 150))], " test case: obstacle near target, but axis of the image facing is unobstructed to the boundary"
+        ((50, 10), (50, 150))], " test case: obstacle near target, but axis of the image facing is unobstructed to the boundary"
 
     target = (100,20)
     obstacle_face = 'W'
@@ -154,7 +152,7 @@ def test_generate_target_axis():
     result = Pathfinder.generate_possible_target_axes(target, obstacle_face, other_obstacles)
     print(f'{result=}')
 
-    assert result == [((50, 0), (50, 110)), ((50, 130), (50, 150))], "Test case: obstacle within 40cm of target"
+    assert result == [((50, 10), (50, 110)), ((50, 130), (50, 150))], "Test case: obstacle within 40cm of target"
 
 
 def test_find_path_to_linear_target():
@@ -183,6 +181,7 @@ def test_find_path_to_linear_target():
 
 
 def test_pathfind_to_axis_and_reorient():
+    raise NotImplementedError
     # raise NotImplementedError
     start = (0, 0)
     starting_face = 'N'
@@ -196,7 +195,7 @@ def test_pathfind_to_axis_and_reorient():
     # W - Left
 
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
-    TempGUI.plot_targets_and_path(start=start, targets=targets, path=[], path_faces=[], obstacles=obstacles)
+    # TempGUI.plot_targets_and_path(start=start, targets=targets, path=[], path_faces=[], obstacles=obstacles)
 
     result = Pathfinder.get_path_betweeen_points_directed(start, targets, obstacle_faces, obstacles)
     assert result
@@ -213,6 +212,7 @@ def test_pathfind_to_axis_and_reorient():
 # test_pathfind_to_axis_and_reorient()
 
 def test_shortest_path_between_points_directed():
+    raise NotImplementedError
     start = (0, 0)
     starting_face = 'N'
 
@@ -237,16 +237,63 @@ def test_shortest_path_between_points_directed():
 
 # test_shortest_path_between_points_directed()
 
-if __name__ == "__main__":
-    ROBOT_TGT_DIST_FROM_IMG = 20
-    targets = [(40, 40), (50, 80), (100, 40), (160, 70), (170, 150)]
-    start = (35,45)
+def test_get_path_directed():
+    start = (0, 0)
+    starting_face = 'N'
+
+    obstacle_faces = ['N', 'W', 'S', 'N', 'W']
     obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
-    possible_target_axes = [((50, 10), (50, 80))]
 
-    path = [(0, 10), (20, 35), (45, 55), (55, 65), (45, 55), (35, 45), (25, 35), (50, 15)]
+    targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
 
-    TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=[], obstacles=obstacles, real_time=True, delay=0.5)
+    result = Pathfinder.get_path_directed(start, targets, obstacle_faces, obstacles)
+    path, moves = result['path'], result['moves']
+
+    path = Pathfinder.flatten_output(path)
+    moves = Pathfinder.flatten_output(moves)
+    path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+    
+    # TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
+
+def test_shortest_path_between_points_strategy():
+    start = (0, 0)
+    starting_face = 'N'
+
+    obstacle_faces = ['N', 'W', 'S', 'N', 'W']
+    obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
+
+    targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
+
+    overall_result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
+    result = overall_result['pathfinding']
+    traversal_order = overall_result['traversal_order']
+
+    print(f'{traversal_order=}')
+    path, moves = result['path'], result['moves']
+
+    print(f'{moves=}')
+
+    # path = Pathfinder.flatten_output(path)
+    moves = Pathfinder.flatten_output(moves)
+
+
+    path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+
+    TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
+
+test_shortest_path_between_points_strategy()
+
+if __name__ == "__main__":
+    pass
+    # ROBOT_TGT_DIST_FROM_IMG = 20
+    # targets = [(40, 40), (50, 80), (100, 40), (160, 70), (170, 150)]
+    # start = (35,45)
+    # obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
+    # possible_target_axes = [((50, 10), (50, 80))]
+
+    # path = [(0, 10), (20, 35), (45, 55), (55, 65), (45, 55), (35, 45), (25, 35), (50, 15)]
+
+    # TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=[], obstacles=obstacles, real_time=True, delay=0.5)
 
     # print(
     # Pathfinder.find_path_to_point(start, target, obstacles=obstacles)

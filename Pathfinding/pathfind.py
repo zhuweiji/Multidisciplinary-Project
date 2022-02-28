@@ -1,11 +1,12 @@
 from math import sqrt
 from dataclasses import dataclass
 from enum import Enum
-import itertools
 import math
 import heapq
 
 import vectors 
+
+PRODUCTION_CONTINUE_ON_ERROR = False
 
 # """ COMPLETED
 # TODO
@@ -240,7 +241,10 @@ class Pathfinder:
     ROBOT_DISTANCE_FROM_OBS = 10
 
     @classmethod
-    def shortest_path_between_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
+    def shortest_path_between_points_strategy(cls, start, targets, obstacle_faces, obstacles, starting_face='N',
+        algorithm=None):
+
+        algorithm = algorithm or cls.get_path_directed
 
         result = {'pathfinding':None, 'traversal_order': None}
         # shortest path between n points
@@ -263,12 +267,101 @@ class Pathfinder:
             current_node = closest_node
             
 
-            target_list.remove(closest_node)
-            obstacle_faces_list.remove(corresponding_face)
+            target_list.pop(node_index)
+            obstacle_faces_list.pop(node_index)
         
-        print(f'{traversal_order=}')
+        print(obstacle_face_order, traversal_order)
+
         result['traversal_order'] = traversal_order
-        result['pathfinding'] = cls.get_path_betweeen_points_directed(start, traversal_order, obstacle_face_order, obstacles, starting_face)
+        result['pathfinding'] = algorithm(start, traversal_order, obstacle_face_order, obstacles, starting_face)
+
+        return result
+
+    @classmethod
+    def get_path_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
+        """"""
+        output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
+        # pathfind to point
+        # execute reorient
+
+        if not len(targets) == len(obstacle_faces):
+            raise ValueError("Number of obstacle faces and targets must match")
+
+        cx, cy = start
+        facing = starting_face
+
+        for i in range(len(targets)):
+            path_to_target = []
+            moves_to_target = []
+            distance_to_target = 0
+
+            target, obstacle_face = targets[i], obstacle_faces[i]
+
+            # get axis in front of target
+            possible_target_axes = Pathfinder.generate_possible_target_axes(target, obstacle_face, obstacles)
+            if not possible_target_axes:
+                print(f'No target axes found for target {target=}')
+                if PRODUCTION_CONTINUE_ON_ERROR:
+                    continue
+                else:
+                    raise RuntimeError
+            
+            # take only axis containing target 
+            if isinstance(possible_target_axes, list) and len(possible_target_axes) > 1:
+                for axis in possible_target_axes:
+                    if point_within_straight_line(target, *axis):
+                        possible_target_axes.remove(axis)
+                        possible_target_axes.insert(0, axis)
+                        break
+                axis_with_target = possible_target_axes[0]
+            
+            else:   
+                axis_with_target = possible_target_axes[0]
+            facing_at_axis = Pathfinder._opposite_direction(obstacle_face)
+            
+            # try all points to find one that has enough space for reorient
+            points_on_axis_by_closest_to_target = sorted(axis_with_target, key=lambda pt: cls.h_function(*pt, *target))
+            reorient_result = None
+            
+            closest_point, furthest_point = points_on_axis_by_closest_to_target
+            point_to_pathfind_to = closest_point
+
+            while point_to_pathfind_to != furthest_point:
+                to_point_result = cls.find_path_to_point((cx,cy), point_to_pathfind_to, facing, obstacles, final_point_leweway=5)
+                facing_at_point = to_point_result['final_facing']
+                
+                reorient_result = cls.reorient(point_to_pathfind_to, facing_at_point, facing_at_axis, obstacles)
+                if reorient_result:
+                    reorient_facing = reorient_result['final_facing']
+                    reorient_path = reorient_result['path']
+                    reorient_moves = reorient_result['moves']
+                    reorient_distance = reorient_result['distance']
+                    
+                    path_to_target     = [*to_point_result['path'], *reorient_path]
+                    moves_to_target    = [*to_point_result['moves'], *reorient_moves]
+                    distance_to_target = to_point_result['distance'] + reorient_distance
+
+                    output['path'].append(path_to_target)
+                    output['moves'].append(moves_to_target)
+                    # output['path'] = [*output['path'], *path_to_target]
+                    # output['moves'] = [*output['moves'], *moves_to_target]
+                    print(facing_at_axis)
+
+                    output['distance'] = output['distance'] + distance_to_target
+                    facing = reorient_facing
+                    cx, cy = path_to_target[-1]
+
+                    break
+
+                point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
+            
+            if not reorient_result:
+                print(f'Could not find point on target axis {axis_with_target} to reorient in')
+                if PRODUCTION_CONTINUE_ON_ERROR:
+                    continue
+                else:
+                    raise RuntimeError
+        return output
 
     @classmethod
     def get_path_betweeen_points_directed(cls, start, targets, obstacle_faces, obstacles, starting_face='N'):
@@ -687,7 +780,7 @@ class Pathfinder:
     def reorient(cls, current_coords, current_facing, final_facing, obstacles):
         """Get a path that reorients the agent in a new direction on the same point
         ie. find a path with the same starting and ending location that has a final facing same as the given arg
-        result = {'final_facing': str, 'path': [], 'moves': []}
+        result = {'final_facing': str, 'path': [], 'moves': [], distance: int}
         """
         result = {'final_facing': None, 'path': [], 'moves':[], 'distance': 0}
 
@@ -720,7 +813,6 @@ class Pathfinder:
             result['path'] = path
             result['moves'] = moves
             result['final_facing'] = final_facing
-            # result['distance'] = cls.h_function()
             result['distance'] = 0
             return result
 
@@ -937,7 +1029,7 @@ class Pathfinder:
         return instructions
 
     @classmethod
-    def move_one(cls, coords, direction, step=1):
+    def move_one(cls, coords, direction, step=10):
         """Utility function to get the future coords based on some current coordinates and the direction to move in"""
         cx,cy = coords
         if direction == 'N':
@@ -966,7 +1058,14 @@ class Pathfinder:
 
     @classmethod
     def flatten_output(cls, listoflists):
-        return [item for sublist in listoflists for item in sublist]
+        output = []
+        for sublist in listoflists:
+            if isinstance(sublist, list):
+                output = [*output, *sublist]
+            else:
+                output.append(sublist)
+        return output
+        # return [item for sublist in listoflists for item in sublist]
     
     @staticmethod
     def extract_pos(node):
