@@ -1024,7 +1024,7 @@ class Pathfinder:
         return result
 
     @classmethod
-    def determine_final_facing(cls, initial_facing, move_instructions: list[str]):
+    def determine_final_facing(cls, initial_facing, move_instructions):
         """Determine the final facing of the agent given an initial facing and a list of move instructions"""
         return cls.determine_all_faces_on_path(initial_facing, move_instructions)[-1]
 
