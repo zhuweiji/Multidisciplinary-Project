@@ -75,3 +75,6 @@ class Application:
 
     def start_discover(self):
         self._move_path([("l",), ("f", 20), ("l", ), ("f", 20)], capture=True)
+
+if __name__ == "__main__":
+    app = Application()
