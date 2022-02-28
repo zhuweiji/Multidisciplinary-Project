@@ -211,7 +211,8 @@ class DetectServer:
         for i in predict_array:
             result_dict[i] = detect_array[count]
             count = count + 1
-        order_of_list = sorted(result_dict)
+        order_of_list = sorted(result_dict)[::-1]
+        
         detect_array = []
         for i in range(len(order_of_list)):
             id = img_id[result_dict[order_of_list[i]]]
