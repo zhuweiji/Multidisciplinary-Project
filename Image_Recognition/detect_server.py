@@ -58,7 +58,7 @@ img_id = {'A': '20', 'B': '21', 'C': '22', 'D': '23',
                             'Circle' : '40', 'Target': '420', 'Down': '37', '8': '18',
                             '5': '15', '4': '14', 'Left': '39', '9': '19', '1': '11',
                             'Right': '38', '7': '17', '6': '16', '3': '13', '2': '12',
-                            'Up': '36'}
+                            'Up': '36', 'null': '-1'}
 
 # A function that is essential to convert the numpy array so the model can perform predictions
 def convert_array(img_array, img_size=640, stride=32, auto=True):
@@ -154,6 +154,7 @@ class DetectServer:
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
         detect_array = []
+        predict_array = []
         # Process predictions
         for i, det in enumerate(pred):  # per image
             seen += 1
@@ -188,6 +189,7 @@ class DetectServer:
                     send_rpi_id(img_id[self.names[c]] + " " + str(prob))
                     
                     annotator.box_label(xyxy, label, color=colors(c, True))
+                    predict_array = predict_array.append(prob)
 
             im0 = annotator.result()
             if view_img:
@@ -204,6 +206,17 @@ class DetectServer:
                     
 
         # send this array to RPI detect_array
+        result_dict = {}
+        count = 0
+        for i in predict_array:
+            result_dict[i] = detect_array[count]
+            count = count + 1
+        order_of_list = sorted(result_dict)
+        detect_array = []
+        for i in range(len(order_of_list)):
+            id = img_id[result_dict[order_of_list[i]]]
+            detect_array.append(id)
+                                
         return detect_array
 
 # This just calls the main function
