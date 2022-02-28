@@ -67,13 +67,13 @@ class Robot:
     moveset = {
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
-        'RIGHT_FWD':       (20, 25),
-        'RIGHT_RVR':       (20, -25),
-        'LEFT_FWD':        (-20, 25),
-        'LEFT_RVR':        (-20, -25),
-        '3PT_RIGHT':       (10, 10),
-        '3PT_LEFT':        (-10, 10),
-        '3PT_TURN_AROUND': (10, 10),
+        'RIGHT_FWD':       (30, 30),
+        'RIGHT_RVR':       (30, -30),
+        'LEFT_FWD':        (-30, 30),
+        'LEFT_RVR':        (-30, -30),
+        '3PT_RIGHT':       (10, 0),
+        '3PT_LEFT':        (-10, 0),
+        '3PT_TURN_AROUND': (0, 0),
     }         
     
     moveset_i = {v:k for k,v in moveset.items()}    
@@ -269,8 +269,7 @@ class Pathfinder:
 
             obstacle_face_order.append(corresponding_face)
             current_node = closest_node
-            
-
+    
             target_list.pop(node_index)
             obstacle_faces_list.pop(node_index)
         
@@ -285,7 +284,7 @@ class Pathfinder:
         """"""
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
-        LEEWAY_AROUND_TARGET = 0
+        LEEWAY_AROUND_TARGET = 5
 
         if not len(targets) == len(obstacle_faces):
             raise ValueError("Number of obstacle faces and targets must match")
@@ -327,12 +326,12 @@ class Pathfinder:
             
             closest_point, furthest_point = points_on_axis_by_closest_to_target
             point_to_pathfind_to = closest_point
-
             # try all points to find one that has enough space for reorient
             while point_to_pathfind_to != furthest_point:
-                
-                # pathfind to point
                 to_point_result = cls.find_path_to_point((cx,cy), point_to_pathfind_to, facing, obstacles, final_point_leweway=LEEWAY_AROUND_TARGET)
+                if not to_point_result:
+                    point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
+                    continue
                 facing_at_point = to_point_result['final_facing']
                 
                 # execute reorient
@@ -546,11 +545,11 @@ class Pathfinder:
         def h(argx,argy):
             return Pathfinder.h_function(argx,argy,tx,ty)
 
-
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
 
             (current_x, current_y) = current_node
+
             visited_nodes.add(current_node)
             for movetype in cls.moveset:
                 (dx, dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype) # delta-x and y from a possible movement by the robot
@@ -589,8 +588,7 @@ class Pathfinder:
                     result['final_facing'] = final_facing
                     return result
 
-                heapq.heappush(
-                    queue, (next_cost, (final_x, final_y), final_facing, path_to_next, movetypes_to_next))
+                heapq.heappush(queue, (next_cost, (final_x, final_y), final_facing, path_to_next, movetypes_to_next))
 
     @classmethod
     def find_path_to_linear_target(cls, start, axis_start, axis_end, starting_face,

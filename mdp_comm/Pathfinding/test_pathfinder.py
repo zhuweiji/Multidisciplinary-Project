@@ -22,6 +22,11 @@ def test_robot_moveset():
         for k, v in moveset_atomic.items()
     ), "End point of atomic moveset should be coords after move"
 
+    # for k,v in moveset_atomic.items():
+        # if not (v[-1][0]) == moveset[k][0] and v[-1][1] == moveset[k][1]:
+            # print(v)
+            # print(moveset[k])
+
 
 def test_move_w_facing():
     index = 0
@@ -285,7 +290,9 @@ def test_shortest_path_between_points_strategy():
 
 if __name__ == "__main__":
     # test_shortest_path_between_points_strategy()
-    pass
+    to_point_result = Pathfinder.find_path_to_point((0,0), (80, 140), 'N', [(80, 160)], final_point_leweway=5)
+    print(to_point_result)
+    
     
 
 
