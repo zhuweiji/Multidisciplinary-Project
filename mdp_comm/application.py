@@ -17,7 +17,7 @@ class Application:
         self.robot.connect()
         self.image_server.run()
         self.bluetooth_server.run()
-        while not self.image_server.is_connected() and self.bluetooth_server.is_connected():
+        while not self.image_server.is_connected() or self.bluetooth_server.is_connected():
             time.sleep(1)
             print("waiting for connection")
  
