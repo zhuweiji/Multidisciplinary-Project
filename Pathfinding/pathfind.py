@@ -63,6 +63,7 @@ class Node:
 
 @dataclass(eq=True, frozen=True)
 class Robot:
+    CAMERA_FOV = 81.4
     valid_facings = ['N', 'S', 'E', 'W']
 
     moveset = {
@@ -114,7 +115,7 @@ class Robot:
     })(moveset)
 
     @classmethod
-    def move_w_facing(cls, facing, command) -> tuple[tuple[int, int], str, list]:
+    def move_w_facing(cls, facing, command):
         if not (command in cls.moveset or command in cls.moveset.values()):
             raise ValueError(f'Command must be in the moveset of the robot')
         
@@ -259,6 +260,7 @@ class Pathfinder:
 
         while target_list:
             closest_node = sorted(target_list, key=lambda node:Pathfinder.h_function(*current_node, *node))[0]
+            print(closest_node)
             node_index = target_list.index(closest_node)
             corresponding_face = obstacle_faces_list[node_index]
 
@@ -585,8 +587,8 @@ class Pathfinder:
                     queue, (next_cost, (final_x, final_y), final_facing, path_to_next, movetypes_to_next))
 
     @classmethod
-    def find_path_to_linear_target(cls, start, axis_start: tuple[int, int], axis_end: tuple[int, int], starting_face,
-        obstacles: list[tuple]) -> list[tuple[int,int]]:
+    def find_path_to_linear_target(cls, start, axis_start, axis_end, starting_face,
+        obstacles):
         '''	
         Find a reasonable path from a starting position to a destination which is a line, which is defined as the points inclusive between axis_start and axis_end
         Pathfinding algorithm is A* with heuristic = distance from point to line 
@@ -703,7 +705,7 @@ class Pathfinder:
         
     @classmethod
     def generate_possible_target_axes(cls, target, obstacle_face:str, obstacles,
-                             min_axis_length=None) -> list[tuple[tuple, tuple]]:
+                             min_axis_length=None):
         '''	
         Generate a line X distance away from the image face of the obstacle
         The agent will route to this line, before aligning to the target
@@ -946,7 +948,6 @@ class Pathfinder:
 
         return True
 
-
     @classmethod
     def _generate_points_to_keep_clear_on_turn(cls, start_x, start_y, atomic_moves:list):
         if not isinstance(atomic_moves, list):
@@ -958,6 +959,18 @@ class Pathfinder:
             x,y = x+dx, y+dy
             result.append((x,y))
         return result
+
+    @classmethod
+    def find_images_in_view_arc(cls, current_coords, current_facing, obstaces_with_images, obstacle_image_face, other_obstacles):
+        # filter out images that have face != opp current facing
+        # of these images apply view at distance formula to determine if they are in viewing arc
+            # viewing arc = tan(fov) * forward 1-d distance * 2
+
+        # filter out images that are not in viewing arc
+        # generate occlusion 
+
+        pass
+    
 
     @classmethod
     def points_are_out_of_bounds(cls, x, y):

@@ -1,8 +1,8 @@
 from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
-def pathfind(obstacle_faces: list[str], obstacle_ids:list[str], obstacles_with_images, other_obstacles: list[tuple[int, int]], 
-            starting_face='N', start: tuple[int, int]=(0,0)):  
+def pathfind(obstacle_faces, obstacle_ids, obstacles_with_images, other_obstacles, 
+            starting_face='N', start=(0,0)):  
     
     obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
