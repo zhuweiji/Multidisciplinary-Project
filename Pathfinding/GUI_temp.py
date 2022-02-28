@@ -32,6 +32,8 @@ class TempGUI:
         obs_y = [get_y(obs)+5 for obs in obstacles]
         plt.scatter(obs_x, obs_y, color='r')
 
+        path_x = [get_x(node)+5 for node in path]
+        path_y = [get_y(node)+5 for node in path]
 
         x_edges = [-5,-5,205,205]
         y_edges = [-5, 205, -5, 205]
@@ -40,47 +42,19 @@ class TempGUI:
         plt.xticks([i for i in range(0, 210, 10)], rotation=90, ha="left")
         plt.yticks([i for i in range(0, 210, 10)])
         plt.grid(True, which='both')
-
-        if isinstance(path[0], list):
-            final_path = []
-            for item in path:
-                final_path = [*final_path, *item, ('FLASH', 'FLASH')]
-            path = final_path
         
-        path_x = []
-        path_y = []
-        for node in path:
-            if node[0] != 'FLASH':
-                path_x.append(get_x(node)+5)
-                path_y.append(get_y(node)+5)
+        for index, (x,y) in enumerate(zip(path_x,path_y)):
+            if path_faces:
+                plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='green')
             else:
-                 path_x.append('FLASH')
-                 path_y.append('FLASH')
-        
-        prev_x, prev_y = None, None
-        index = 0
-        for (x,y) in zip(path_x,path_y):                
-            prev_x = x if x != 'FLASH' else prev_x
-            prev_y = y if x != 'FLASH' else prev_y
-
-            if x != 'FLASH':
-                if path_faces:
-                    plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='green')
-                else:
-                    plt.scatter(x, y, color='b')
+                plt.scatter(x, y, color='b')
             
+            if real_time:
+                plt.pause(delay)
+            if (x,y) in list(zip(targets_x, targets_y)):
+                plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='yellow')
                 if real_time:
-                    plt.pause(delay)
-            else:
-                plt.scatter(prev_x, prev_y, marker=(3, 0, get_degree(path_faces[index])), color='yellow')
-                if real_time:
-                    plt.pause(delay)
-                
-            index = index + 1 if x!= 'FLASH' else index
-            # if (x,y) in list(zip(targets_x, targets_y)):
-            #     plt.scatter(x,y, marker=(3, 0, get_degree(path_faces[index])), color='yellow')
-            #     if real_time:
-            #         plt.pause(delay*1.5)
+                    plt.pause(delay*1.5)
 
         # ax.yaxis.get_major_locator().set_params(integer=True)
         plt.show()

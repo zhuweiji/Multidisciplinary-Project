@@ -273,10 +273,8 @@ def test_shortest_path_between_points_strategy():
 
     print(f'{moves=}')
 
-    # path = Pathfinder.flatten_output(path)
+    path = Pathfinder.flatten_output(path)
     moves = Pathfinder.flatten_output(moves)
-
-
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
     TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
