@@ -197,10 +197,27 @@ class DetectServer:
                 cv2.waitKey(0)
 
             # Save image if theres a detection
-            for i in detect_array:
-                if o != 'null' and o != 'Target':
-                    img_name = str(self.names[c]) + "_" +str(img_id[self.names[c]]) + "_" + str(prob) + ".jpg"
-                    save_it = os.path.join(self.save_folder,img_name)
+            if o != 'null' and o != 'Target':
+                img_name = str(img_id[self.names[c]]) +  "_" + str(prob) + ".jpg"
+                save_it = os.path.join(self.save_folder,img_name)
+                exists_file = os.path.join(self.save_folder,"*.jpg")
+
+                head_tail_1 = os.path.split(save_it)
+                files = glob.glob(exists_file)
+                id_detected = img_id[self.names[c]]
+
+                flag = 0
+                for i in files:
+                    head_tail_2 = os.path.split(i)
+                    tail_2 = head_tail_2[1]
+                    id_file = float(tail2[0:2])
+                    if id_detected == id_file:
+                        prob_old = float(tail2[3:7])
+                        if (prob > prob_old):
+                            flag = 1
+                            cv2.imwrite(save_it, im0)
+                            break
+                if (flag == 0):
                     cv2.imwrite(save_it, im0)
 
                     
