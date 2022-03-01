@@ -284,7 +284,7 @@ class Pathfinder:
         """"""
         output = {'path': [], 'distance': 0, 'final_facing': None, 'moves':[]}
 
-        LEEWAY_AROUND_TARGET = 3
+        LEEWAY_AROUND_TARGET = 5
 
         if not len(targets) == len(obstacle_faces):
             raise ValueError("Number of obstacle faces and targets must match")
