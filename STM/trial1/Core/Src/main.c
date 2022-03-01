@@ -635,20 +635,31 @@ void set_wheel_direction(bool isForward){
 	}
 }
 
+bool inLab = true;
 uint32_t motorAPwm = 5840; // 5820
 uint32_t motorBPwm = 5510; // 5510;
 uint32_t motorAPwmLow = 1000;
-uint32_t motorBPwmLow = 1000;
 uint32_t servoRight = 135; // measure tan 1.6/3 - set to 140 => motor will not run -> think 135 is max
 uint32_t servoLeft = 53; // old 44 // measure tan: 1.7/3
 uint32_t servoMid = 73;
+float DegConstLeft;
+float DegConstRight;
+
+if (inLab){
+	motorBPwmLow = 1050;
+	DegConstLeft = 0.95;
+	DegConstRight = 1;
+} else {
+	motorBPwmLow = 1000;
+	DegConstLeft = 1;
+	DegconstRight = 1;
+}
 
 /** measure distance **/
 bool isMeasureDis = false;
 bool overFlow = false;
 uint32_t diffA = 0;
 uint32_t diffB = 0;
-
 uint32_t cnt1A = 0;
 uint32_t cnt1B = 0;
 uint32_t cnt2A = 0;
@@ -971,7 +982,7 @@ void motors(void *argument)
 					case 'L':
 						if (indexer-1 > 1){
 							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
-							turn_deg(deg, false, true);
+							turn_deg(deg * DegConstLeft, false, true);
 							deg = 0;
 						} else {
 							three_points_turn_90deg(false);
@@ -980,7 +991,7 @@ void motors(void *argument)
 					case 'R':
 						if (indexer-1 > 1){
 							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
-							turn_deg(deg, true, true);
+							turn_deg(deg * DegConstRight, true, true);
 							deg =0;
 						} else {
 							three_points_turn_90deg(true);
