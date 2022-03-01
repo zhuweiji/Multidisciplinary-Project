@@ -803,8 +803,11 @@ void turn_right()
 /**
  * For turning
  */
-const float tan_of_wheel_deg_right = 1.75/4.1; // 4.1 work outside lab
-const float tan_of_wheel_deg_left = 1.75/4; // 31.06 deg 0.8/1.3 0.8/1.6 1.75/3
+
+const float L = 14.5;
+const float D = 18.8;
+const float tan_of_wheel_deg_right = 1.45/3; // use without l cal 1.75/4.1  work outside lab // real 1.45/3
+const float tan_of_wheel_deg_left = 1.45/3; // cali 1.75/4.1  real 1.45/3
 float calTurnDis (int deg, bool isRight){
 	float tan;
 	if (isRight){
@@ -812,7 +815,7 @@ float calTurnDis (int deg, bool isRight){
 	} else {
 		tan = tan_of_wheel_deg_left;
 	}
-	float turnRadius = 14.5 / tan;
+	float turnRadius = L/tan + D/2; // this is avg radius of 2 back wheel
 	return turnRadius * deg * M_PI/180;
 }
 
@@ -854,7 +857,7 @@ void turn_deg( int deg, bool isRight, bool isForward){
 		HAL_Delay(5);
 		} while (distance > measuredDis);
 	stop_rear_wheels();
-  htim1.Instance->CCR4 = servoMid;
+//  htim1.Instance->CCR4 = servoMid;
 }
 
 
@@ -862,16 +865,24 @@ void turn_deg( int deg, bool isRight, bool isForward){
  * 3 point turn
  */
 const float R = 63.5/2;
-float d = R/2;
+float d = R/3.1569; // init 30 -> 2
 void three_points_turn_90deg(bool isRight){
 	move_straight(false, 2);
-	turn_deg(30, isRight, true);
-	move_straight(false, d);
-	turn_deg(30, isRight, true);
-	move_straight(false, d);
-	turn_deg(30, isRight, true);
-	move_straight(false, d);
+	int numberTurn = 5;
+	float deg = 90/numberTurn;
+	for (int i = 0; i < numberTurn; i++){
+		turn_deg(deg, isRight, true);
+		move_straight(false, d);
+	}
 	move_straight(false, 4);
+//	move_straight(false, 2);
+//	turn_deg(30, isRight, true);
+//	move_straight(false, d);
+//	turn_deg(30, isRight, true);
+//	move_straight(false, d);
+//	turn_deg(30, isRight, true);
+//	move_straight(false, d);
+//	move_straight(false, 4);
 }
 // end motors function
 /* USER CODE END 4 */
@@ -938,7 +949,7 @@ void motors(void *argument)
 	 */
 	if (inLab) {
 		motorBPwmLow = 1050;
-		DegConstLeft = 0.95;
+		DegConstLeft = 1;
 		DegConstRight = 1;
 	} else {
 		motorBPwmLow = 1000;
@@ -1031,8 +1042,8 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-//				turn_deg(360, false, true);
-				move_straight(true, 10);
+				turn_deg(360, true, true);
+//				three_points_turn_90deg(true);
 				haveTest = true;
 			}
 	  	osDelay(100);
