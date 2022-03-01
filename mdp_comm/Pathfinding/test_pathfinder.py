@@ -120,14 +120,15 @@ def test__get_boundary_and_obstacles_in_line():
     assert obstacles_in_line == [(100,50), (100,180)]
 
 def test_generate_points_to_keep_clear_on_turn():
-    raise RuntimeError('Run this test case manually to display all the keep clear points for each move')
+    # raise RuntimeError('Run this test case manually to display all the keep clear points for each move')
     for move in Robot.moveset:
         (dx,dy), new_facing, atomic_moves = Robot.move_w_facing('N', move)
         print(atomic_moves)
         path_to_keep_clear = Pathfinder._generate_points_to_keep_clear_on_turn(100, 100, atomic_moves)
         print(path_to_keep_clear)
 
-        TempGUI.plot_targets_and_path(start=(100,100), targets=path_to_keep_clear, path=[], obstacles=[])
+        if __name__ == "__main__":
+            TempGUI.plot_targets_and_path(start=(100,100), targets=path_to_keep_clear, path=[], obstacles=[])
 
 def test_generate_target_axis():
     target = (50,150)
@@ -272,7 +273,25 @@ def test_get_path_directed():
 
 
 def test_regression_shortest_path_between_points_strategy():
-    test_case = [[(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)], ['E', 'S', 'N', 'W', 'E'], []]
+    test_cases = [
+        [[(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)], ['E', 'S', 'N', 'W', 'E'], []],
+        [[(80, 60), (180, 90), (50, 10), (150, 60), (140, 120)], ['N', 'N', 'N', 'N', 'E'], []],
+        [[(150, 180), (60, 10), (150, 10), (20, 120), (100, 160)], ['S', 'E', 'W', 'S', 'E'], []],
+        [[(40, 50), (180, 70), (110, 150), (60, 130), (120, 10)], ['N', 'N', 'S', 'W', 'N'], [(100, 140), (190, 160)]],
+        [[(10, 70), (80, 70), (140, 190), (160, 90), (190, 130)], ['E', 'S', 'S', 'N', 'S'], [(70, 130)]],
+        [[(170, 50), (110, 10), (160, 60), (0, 40), (110, 170)], ['W', 'N', 'S', 'E', 'S'], [(30, 130), (70, 160)]],
+    ]
+
+    for test_case in test_cases:
+        obstacles_with_images, obstacle_faces, other_obstacles = test_case
+
+        result = main.pathfind(obstacle_faces=obstacle_faces,
+        obstacles_with_images=obstacles_with_images,
+            other_obstacles=other_obstacles)
+        assert result
+
+
+
 
     # obstacles_with_images, obstacle_faces, other_obstacles = test_case
     
@@ -280,7 +299,6 @@ def test_regression_shortest_path_between_points_strategy():
     # obstacles_with_images=obstacles_with_images,
     # other_obstacles=other_obstacles)
 
-    raise NotImplementedError
     
 # def test_shortest_path_between_points_strategy():
 #     start = (0, 0)
@@ -311,17 +329,14 @@ def test_regression_shortest_path_between_points_strategy():
 
 
 if __name__ == "__main__":
-    (dx, dy), final_facing, atomic_moves = Pathfinder.agent.move_w_facing('N', 'RIGHT_FWD') 
     
-    keep_clear_points = Pathfinder._generate_points_to_keep_clear_on_turn(47, 111, atomic_moves)
-    
-
+    test_regression_shortest_path_between_points_strategy()
     # print(
     #     Pathfinder.check_all_points_on_path_valid(
     #     [(47, 121), (47, 131), (47, 141), (57, 143), (67, 143), (77, 143), (79, 143)], [(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)]
     # ))
     
-    print(point_within_rect(79, 143, 10,10, 85, 155))
+    # print(point_within_rect(79, 143, 10,10, 85, 155))
 
 
 

@@ -125,8 +125,9 @@ if __name__ == "__main__":
     #     TempGUI.plot_targets_and_path(start=[], targets=targets, path=obstacles_with_images, obstacles=other_obstacles)
 
     test_case = generate_one_test_case()
-    test_case =[[(80, 60), (190, 100), (50, 10), (150, 60), (150, 120)], ['N', 'N', 'N', 'N', 'E'], [(0, 0)]]
-    print(test_case)
+        
+    test_case = [[(80, 60), (180, 90), (50, 10), (150, 60), (140, 120)], ['N', 'N', 'N', 'N', 'E'], []]
+    print(f'{test_case=}')
     starting_face = 'N'
     
     import main
@@ -139,6 +140,7 @@ if __name__ == "__main__":
     targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
     TempGUI.plot_targets_and_path(targets=targets, obstacles_with_images=obstacles_with_images,obstacles=other_obstacles)
 
+    obstacles_with_images, obstacle_faces, other_obstacles = test_case
 
     result = main.pathfind(obstacle_faces=obstacle_faces,
     obstacles_with_images=obstacles_with_images,
@@ -153,6 +155,6 @@ if __name__ == "__main__":
     print(path)
     print(moves)
 
-    TempGUI.plot_targets_and_path(path=path, path_faces=path_faces, 
+    TempGUI.plot_targets_and_path(targets=targets, path=path, path_faces=path_faces, 
         obstacles_with_images=obstacles_with_images, obstacles=other_obstacles, real_time=True, delay=0.8)
 

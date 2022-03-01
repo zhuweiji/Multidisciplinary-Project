@@ -67,9 +67,9 @@ class Robot:
     moveset = {
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
-        'RIGHT_FWD':       (32, 32),
+        # 'RIGHT_FWD':       (32, 32),
         # 'RIGHT_RVR':       (32, -32),
-        'LEFT_FWD':        (-32, 32),
+        # 'LEFT_FWD':        (-32, 32),
         # 'LEFT_RVR':        (-32, -32),
         '3PT_RIGHT':       (0, 0),
         '3PT_LEFT':        (0, 0),
@@ -83,31 +83,31 @@ class Robot:
     moveset_atomic = (lambda moveset: {
         'FORWARD':   [(0,10)],
         'REVERSE':   [(0,-10)],
-        'RIGHT_FWD': [
-            *[(0, i) for i in range(10, abs(moveset['RIGHT_FWD'][1])+1, 10)],
-            *[(i, moveset['RIGHT_FWD'][1])
-              for i in range(10, abs(moveset['RIGHT_FWD'][0])+1, 10)],
-                ] + [moveset['RIGHT_FWD']],
+        # 'RIGHT_FWD': [
+        #     *[(0, i) for i in range(10, abs(moveset['RIGHT_FWD'][1])+1, 10)],
+        #     *[(i, moveset['RIGHT_FWD'][1])
+        #       for i in range(10, abs(moveset['RIGHT_FWD'][0])+1, 10)],
+        #         ] + [moveset['RIGHT_FWD']],
         # 'RIGHT_RVR': [
         #     *[(0, -i) for i in range(10, abs(moveset['RIGHT_RVR'][1])+1, 10)],
         #     *[(i, moveset['RIGHT_RVR'][1])
         #       for i in range(10, abs(moveset['RIGHT_RVR'][0])+1, 10)],
         #         ] + [moveset['RIGHT_RVR']],
-        'LEFT_FWD':  [
-            *[(0, i) for i in range(10, abs(moveset['LEFT_FWD'][1])+1, 10)],
-            *[(-i, moveset['LEFT_FWD'][1])
-              for i in range(10, abs(moveset['LEFT_FWD'][0])+1, 10)],
-                ] + [moveset['LEFT_FWD']],
+        # 'LEFT_FWD':  [
+        #     *[(0, i) for i in range(10, abs(moveset['LEFT_FWD'][1])+1, 10)],
+        #     *[(-i, moveset['LEFT_FWD'][1])
+        #       for i in range(10, abs(moveset['LEFT_FWD'][0])+1, 10)],
+        #         ] + [moveset['LEFT_FWD']],
         # 'LEFT_RVR':  [
         #     *[(0, -i) for i in range(10, abs(moveset['LEFT_RVR'][1])+1, 10)],
         #     *[(-i, moveset['LEFT_RVR'][1])
         #       for i in range(10, abs(moveset['LEFT_RVR'][0])+1, 10)],
         #         ] + [moveset['LEFT_RVR']],
 
-        "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (0, -10), (10, 10),
-                        (10, -10), (14, 10), (14, 0), (14, -10)] + [moveset['3PT_RIGHT']],
-        "3PT_LEFT":   [(0, 0), (0, 10), (-10, 0), (0, -10), (-10, -10),
-                        (-10, 10), (-21, 0), (-14, -10), (-14, 10)] + [moveset['3PT_LEFT']],
+        "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (0, -4), (10, 10),
+                        (10, -4), (14, 10), (14, 0), (14, -4)] + [moveset['3PT_RIGHT']],
+        "3PT_LEFT":   [(0, 0), (0, 10), (-10, 0), (0, -4), (-10, -4),
+                        (-10, 10), (-21, 0), (-14, -4), (-14, 10)] + [moveset['3PT_LEFT']],
         "3PT_TURN_AROUND": [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
                         (-10, 10), (10, -10)] + [moveset['3PT_TURN_AROUND']],
     })(moveset)
@@ -568,14 +568,6 @@ class Pathfinder:
                 if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     continue
                 
-                if current_node ==  (47, 111) and final_x==79 and final_y==143:
-                    print()
-                    print(cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles))
-                    print(path_to_keep_clear)
-                    print(obstacles)
-                    print('IT MADE IT THROUGH')
-                    print('-'*50)
-
                 path_to_next = [*path_to_current, (final_x, final_y)]
                 movetypes_to_next = [*movetypes_to_current, movetype]
 
@@ -588,10 +580,10 @@ class Pathfinder:
                 elif movetype in ['REVERSE']:
                     next_cost += 0.5
 
-                # elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
-                    # next_cost += 3
-                # elif movetype == '3PT_TURN_AROUND':
-                    # next_cost += 3.2
+                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    next_cost += 2
+                elif movetype == '3PT_TURN_AROUND':
+                    next_cost += 2
 
                 if point_within_rect(tx, ty, final_point_leweway, final_point_leweway, final_x, final_y):
                 # if (final_x == tx and final_y == ty):
@@ -666,10 +658,10 @@ class Pathfinder:
                 elif movetype in ['REVERSE']:
                     next_cost += 0.5
 
-                # elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
-                    # next_cost += 3
-                # elif movetype == '3PT_TURN_AROUND':
-                    # next_cost += 3.2
+                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    next_cost += 2
+                elif movetype == '3PT_TURN_AROUND':
+                    next_cost += 2
 
                 is_complete = False
                 same_x = tx1 == tx2
@@ -770,8 +762,6 @@ class Pathfinder:
         # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
         possible_axes = [line for line in possible_axes if not any(point_within_straight_line(obs, *line) for obs in obstacles)]
 
-        print(possible_axes)
-
         if fixed_x:
             possible_axes = [line for line in possible_axes if abs(line[0][1]-line[1][1]) >= min_axis_length ]
         else:
@@ -824,8 +814,6 @@ class Pathfinder:
             facing = current_facing
             coords = current_coords
             path = []
-
-            print(coords)
 
             cx,cy = coords
             for move in moves:
