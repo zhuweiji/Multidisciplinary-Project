@@ -340,11 +340,11 @@ static void MX_TIM2_Init(void)
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
+  sConfig.IC1Filter = 10;
   sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
+  sConfig.IC2Filter = 10;
   if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -389,11 +389,11 @@ static void MX_TIM3_Init(void)
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
+  sConfig.IC1Filter = 10;
   sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
+  sConfig.IC2Filter = 10;
   if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -638,9 +638,9 @@ void set_wheel_direction(bool isForward){
 uint32_t motorAPwm = 5840; // 5820
 uint32_t motorBPwm = 5510; // 5510;
 uint32_t motorAPwmLow = 1000;
-uint32_t motorBPwmLow = 950;
+uint32_t motorBPwmLow = 1000;
 uint32_t servoRight = 135; // measure tan 1.6/3 - set to 140 => motor will not run -> think 135 is max
-uint32_t servoLeft = 50; // old 44 // measure tan: 1.7/3
+uint32_t servoLeft = 53; // old 44 // measure tan: 1.7/3
 uint32_t servoMid = 73;
 
 /** measure distance **/
@@ -691,14 +691,14 @@ float measure (int cnt1_A, int cnt1_B){
 
 	cnt2A = cnt2_A;
 	cnt2B = cnt2_B;
-	diff_A = findDiffTime(isDownA, cnt1_A, cnt2_A);
-	diff_B = findDiffTime(isDownB ,cnt1_B, cnt2_B);
+	diff_A = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), cnt1_A, __HAL_TIM_GET_COUNTER(&htim2));
+	diff_B = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), cnt1_B, __HAL_TIM_GET_COUNTER(&htim3));
 
 	diffA = diff_A;
 	diffB = diff_B;
-	disA = diff_A*M_PI/(330*4)*6.5;
-	disB = diff_B*M_PI/(330*4)*6.5;
-	return (disA + disB)/2;
+	disA = diff_A*M_PI/(330*4)*5.65; // real is 6.5
+	disB = diff_B*M_PI/(330*4)*5.65; // real is 6.5
+  return (disA + disB)/2;
 }
 
 /* distance should be in cm*/
@@ -716,6 +716,8 @@ void move_straight(bool isForward, float distance)
 	if (distance > 50){
 		usePwmA = motorAPwm;
 		usePwmB = motorBPwm;
+//		usePwmA = motorAPwmLow;
+//		usePwmB = motorBPwmLow;
 	} else {
 		usePwmA = motorAPwmLow;
 		usePwmB = motorBPwmLow;
@@ -728,18 +730,10 @@ void move_straight(bool isForward, float distance)
 
 	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
   cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
-//	while (distance > measuredDis) {
-//		deltaT = HAL_GetTick() - tick;
-//		if (deltaT > 10L){
-//			measuredDis = measure(cnt1_A, cnt1_B);
-//			testVal = (uint32_t) measuredDis;
-//			tick = HAL_GetTick();
-//		}
-//	}
 	do {
+		HAL_Delay(10);
 		measuredDis = measure(cnt1_A, cnt1_B);
 		testVal = (uint32_t) measuredDis;
-		HAL_Delay(10);
 	} while (distance > measuredDis);
 //	LED_SHOW = 0;
 	isMeasureDis = false; // stop measure
@@ -807,8 +801,8 @@ void turn_right()
 /**
  * For turning
  */
-const float tan_of_wheel_deg_right = 1.75/4.15; // 31.06 deg 0.8/1.3 0.8/1.6 1.75/3
-const float tan_of_wheel_deg_left = 1.75/3.5; // 31.06 deg 0.8/1.3 0.8/1.6 1.75/3
+const float tan_of_wheel_deg_right = 1.75/4.1; // 4.1 work outside lab
+const float tan_of_wheel_deg_left = 1.75/4; // 31.06 deg 0.8/1.3 0.8/1.6 1.75/3
 float calTurnDis (int deg, bool isRight){
 	float tan;
 	if (isRight){
@@ -835,7 +829,7 @@ void turn_deg( int deg, bool isRight, bool isForward){
 		servo = servoLeft;
 	}
 	htim1.Instance->CCR4 = servo;
-	HAL_Delay(1000);
+	HAL_Delay(100);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwmLow);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, motorBPwmLow);
 
@@ -865,13 +859,17 @@ void turn_deg( int deg, bool isRight, bool isForward){
 /**
  * 3 point turn
  */
+const float R = 63.5/2;
+float d = R/2;
 void three_points_turn_90deg(bool isRight){
-	move_straight(false, 15);
+	move_straight(false, 2);
 	turn_deg(30, isRight, true);
-	move_straight(false, 15);
+	move_straight(false, d);
 	turn_deg(30, isRight, true);
-	move_straight(false, 15);
+	move_straight(false, d);
 	turn_deg(30, isRight, true);
+	move_straight(false, d);
+	move_straight(false, 4);
 }
 // end motors function
 /* USER CODE END 4 */
@@ -948,20 +946,21 @@ void motors(void *argument)
 	bool haveTest = false;
 	for(;;)
 	  {
-			if (commandReady){
+			if (commandReady && haveTest){
 				haveSendSignalBack = false;
 				doCommand = true;
 				switch (aRxBuffer[0]){
 					case 'F':
 						straightDistance = arrTofloat(aRxBuffer,1,indexer-1);
-						if (straightDistance < (float) 50){
-							int moveTime = (int) straightDistance/10;
-							for (int i=0; i < moveTime; i ++){
-								move_straight_10();
-							}
-						} else {
-							move_straight(true, straightDistance);
-						}
+//						if (straightDistance < (float) 50){
+//							int moveTime = (int) straightDistance/10;
+//							for (int i=0; i < moveTime; i ++){
+//								move_straight_10();
+//							}
+//						} else {
+//							move_straight(true, straightDistance);
+//						}
+						move_straight(true, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'B':
@@ -987,6 +986,22 @@ void motors(void *argument)
 							three_points_turn_90deg(true);
 						}
 						break;
+					case 'A':
+						// left reverse
+						if (indexer-1 > 1){
+							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
+							turn_deg(deg, true, false);
+							deg =0;
+						}
+						break;
+					case 'D':
+						// right reverse
+						if (indexer-1 > 1){
+							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
+							turn_deg(deg, false, false);
+							deg =0;
+						}
+						break;
 					default:
 						doCommand = false;
 						break;
@@ -998,12 +1013,13 @@ void motors(void *argument)
 				}
 				commandReady = false;
 			}
-//			if (! haveTest){
-//
-//				turn_right();
-//				haveTest = true;
-//			}
-//	  	osDelay(100);
+/* for test */
+			if (! haveTest){
+//				turn_deg(360, false, true);
+				move_straight(true, 10);
+				haveTest = true;
+			}
+	  	osDelay(100);
 	  }
   /* USER CODE END motors */
 }
@@ -1042,31 +1058,31 @@ void show(void *argument)
 //			sprintf(hello, "Cmd ready: %d", commandReady);
 //			OLED_ShowString(10, 20, hello);
 
-			sprintf(hello, "Rec UART: %d", receivingUART);
-			OLED_ShowString(10, 30, hello);
-
-
-			sprintf(hello, "Count cbtx: %d", txCount);
-			OLED_ShowString(10, 40, hello);
-
-			sprintf(hello, "Send back: %d", haveSendSignalBack);
-			OLED_ShowString(10, 50, hello);
+//			sprintf(hello, "Rec UART: %d", receivingUART);
+//			OLED_ShowString(10, 30, hello);
+//
+//
+//			sprintf(hello, "Count cbtx: %d", txCount);
+//			OLED_ShowString(10, 40, hello);
+//
+//			sprintf(hello, "Send back: %d", haveSendSignalBack);
+//			OLED_ShowString(10, 50, hello);
 
 			sprintf(hello, "dis: %d", testVal);
 			OLED_ShowString(10, 10, hello);
 
 			/**debug**/
 
-  				sprintf(hello, "Deg: %d", testDeg);
-  				OLED_ShowString(10, 20, hello);
+//  				sprintf(hello, "Deg: %d", testDeg);
+//  				OLED_ShowString(10, 20, hello);
 
 //				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
 //				OLED_ShowString(10, 10, hello);
-//			sprintf(hello, "Cnt1A: %d", cnt1A);
-//			OLED_ShowString(10, 20, hello);
-//
-//			sprintf(hello, "Cnt2A: %d", cnt2A);
-//			OLED_ShowString(10, 30, hello);
+			sprintf(hello, "DiffA: %d", diffA);
+			OLED_ShowString(10, 20, hello);
+
+			sprintf(hello, "DiffB: %d", diffB);
+			OLED_ShowString(10, 30, hello);
 //
 //			sprintf(hello, "Cnt1B: %d", cnt1B);
 //			OLED_ShowString(10, 40, hello);
