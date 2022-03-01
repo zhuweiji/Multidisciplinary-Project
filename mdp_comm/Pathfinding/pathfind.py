@@ -238,6 +238,7 @@ class Pathfinder:
     ARENA_SIZE = [(5,5), (195, 195)]
     ROBOT_TGT_DIST_FROM_IMG = 30
     ROBOT_DISTANCE_FROM_OBS = 10
+    MIN_AXIS_LENGTH = 20
 
     @classmethod
     def shortest_path_between_points_strategy(cls, start, targets, obstacle_faces, obstacles, starting_face='N',
@@ -306,7 +307,7 @@ class Pathfinder:
                 if PRODUCTION_CONTINUE_ON_ERROR:
                     continue
                 else:
-                    raise RuntimeError
+                    raise RuntimeError(f'No target axes found for target {target=}')
             
             # take only axis containing target 
             if isinstance(possible_target_axes, list) and len(possible_target_axes) > 1:
@@ -740,7 +741,7 @@ class Pathfinder:
         if obstacle_face not in ['N', 'S', 'E', 'W']:
             raise ValueError('obstacle_face must be N/S/E/W')
 
-        min_axis_length = min_axis_length or cls.ROBOT_TGT_DIST_FROM_IMG
+        min_axis_length = min_axis_length or cls.MIN_AXIS_LENGTH
 
         boundary, obstacles_in_axis = cls._get_boundary_and_obstacles_in_line(target, obstacle_face, obstacles)
         valid_points_in_axis = [target, boundary]
@@ -755,6 +756,8 @@ class Pathfinder:
         possible_axes = [
             (points_in_axis[i], points_in_axis[i+1]) for i in range(len(points_in_axis)-1)
             ]
+
+        print(possible_axes)
 
         # filter away possible axes that have length less than min 
         # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
@@ -771,19 +774,20 @@ class Pathfinder:
     def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, obstacles):
         """ internal function used by generate_target_axis"""
         tx, ty = target
+        min_boundary_x, min_boundary_y = cls.ARENA_SIZE[0]
         boundary_x, boundary_y = cls.ARENA_SIZE[1]
         
         if obstacle_face == 'N':
             boundary = (tx, boundary_y-10)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and ty < oy <= boundary_y)]
         elif obstacle_face == 'S':
-            boundary = (tx, 10)
+            boundary = (tx, min_boundary_y)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and 0 <= oy < ty)]
         elif obstacle_face == 'E':
             boundary = (boundary_x-10, ty)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (tx < ox <= boundary_x and oy == ty)]
         elif obstacle_face == 'W':
-            boundary = (10, ty)
+            boundary = (min_boundary_x, ty)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (0 <= ox < tx and oy == ty)]
         else:
             raise ValueError("Unknown direction")

@@ -23,8 +23,8 @@ if __name__ == "__main__":
     # obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
     # obstacle_ids = ['0', '1', '2', '3', '4']
 
-    obstacles = [(130, 150), (120, 70)]
-    obstacle_faces = ['S', 'E']
+    obstacles = [(130, 150)]
+    obstacle_faces = ['S']
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
 
     TempGUI.plot_targets_and_path(targets=targets, obstacles=obstacles)

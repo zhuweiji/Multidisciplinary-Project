@@ -135,10 +135,13 @@ if __name__ == "__main__":
     print(f'{obstacle_faces=}')
     print('-'*50)
 
+    targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
+    TempGUI.plot_targets_and_path(targets=targets, obstacles_with_images=obstacles_with_images,obstacles=other_obstacles)
+
+
     result = main.pathfind(obstacle_faces=obstacle_faces,
     obstacles_with_images=obstacles_with_images,
-    other_obstacles=other_obstacles, starting_face=starting_face
-)
+    other_obstacles=other_obstacles)
     
     pf_results = result['pathfinding']
     path, moves = pf_results['path'], pf_results['moves']
@@ -149,6 +152,6 @@ if __name__ == "__main__":
     print(path)
     print(moves)
 
-    TempGUI.plot_targets_and_path(start=(10,10), path=path, path_faces=path_faces, 
+    TempGUI.plot_targets_and_path(path=path, path_faces=path_faces, 
         obstacles_with_images=obstacles_with_images, obstacles=other_obstacles, real_time=True, delay=0.8)
 
