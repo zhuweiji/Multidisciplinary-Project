@@ -28,7 +28,7 @@ class Pathing:
         for obs, face in zip(self.obstacle_coords, self.faces):
             x, y = obs
             d_x, d_y = face_to_dir[face]
-            goals.append((x+2*d_x, y+2*d_y))
+            goals.append((x+3*d_x, y+3*d_y))
     
         return goals
 
@@ -225,7 +225,7 @@ def create_instructions(heading_at_start, path, heading_at_target):
 
     return instructions[:-1]
 
-def pathfind(obstacle_coords, faces, other_obstacles):
+def pathfind(faces, obstacle_coords, other_obstacles):
     p = Pathing(obstacle_coords, faces, other_obstacles)
     results = p.get_path()
     instructions = list(map(lambda x: create_instructions(*x), zip(*results)))
