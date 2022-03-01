@@ -272,7 +272,8 @@ def test_get_path_directed():
 
 
 def test_regression_shortest_path_between_points_strategy():
-    # test_case = [[(180, 0), (190, 30), (80, 140), (90, 50), (150, 130)], ['W', 'W', 'W', 'S', 'N'], [(70, 40), (30, 170), (180, 50)]]
+    test_case = [[(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)], ['E', 'S', 'N', 'W', 'E'], []]
+
     # obstacles_with_images, obstacle_faces, other_obstacles = test_case
     
     # result = main.pathfind(obstacle_faces=obstacle_faces,

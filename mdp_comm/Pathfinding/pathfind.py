@@ -68,9 +68,9 @@ class Robot:
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
         'RIGHT_FWD':       (32, 32),
-        'RIGHT_RVR':       (32, -32),
+        # 'RIGHT_RVR':       (32, -32),
         'LEFT_FWD':        (-32, 32),
-        'LEFT_RVR':        (-32, -32),
+        # 'LEFT_RVR':        (-32, -32),
         '3PT_RIGHT':       (0, 0),
         '3PT_LEFT':        (0, 0),
         '3PT_TURN_AROUND': (0, 0),
@@ -88,21 +88,21 @@ class Robot:
             *[(i, moveset['RIGHT_FWD'][1])
               for i in range(10, abs(moveset['RIGHT_FWD'][0])+1, 10)],
                 ] + [moveset['RIGHT_FWD']],
-        'RIGHT_RVR': [
-            *[(0, -i) for i in range(10, abs(moveset['RIGHT_RVR'][1])+1, 10)],
-            *[(i, moveset['RIGHT_RVR'][1])
-              for i in range(10, abs(moveset['RIGHT_RVR'][0])+1, 10)],
-                ] + [moveset['RIGHT_RVR']],
+        # 'RIGHT_RVR': [
+        #     *[(0, -i) for i in range(10, abs(moveset['RIGHT_RVR'][1])+1, 10)],
+        #     *[(i, moveset['RIGHT_RVR'][1])
+        #       for i in range(10, abs(moveset['RIGHT_RVR'][0])+1, 10)],
+        #         ] + [moveset['RIGHT_RVR']],
         'LEFT_FWD':  [
             *[(0, i) for i in range(10, abs(moveset['LEFT_FWD'][1])+1, 10)],
             *[(-i, moveset['LEFT_FWD'][1])
               for i in range(10, abs(moveset['LEFT_FWD'][0])+1, 10)],
                 ] + [moveset['LEFT_FWD']],
-        'LEFT_RVR':  [
-            *[(0, -i) for i in range(10, abs(moveset['LEFT_RVR'][1])+1, 10)],
-            *[(-i, moveset['LEFT_RVR'][1])
-              for i in range(10, abs(moveset['LEFT_RVR'][0])+1, 10)],
-                ] + [moveset['LEFT_RVR']],
+        # 'LEFT_RVR':  [
+        #     *[(0, -i) for i in range(10, abs(moveset['LEFT_RVR'][1])+1, 10)],
+        #     *[(-i, moveset['LEFT_RVR'][1])
+        #       for i in range(10, abs(moveset['LEFT_RVR'][0])+1, 10)],
+        #         ] + [moveset['LEFT_RVR']],
 
         "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (0, -10), (10, 10),
                         (10, -10), (14, 10), (14, 0), (14, -10)] + [moveset['3PT_RIGHT']],
@@ -238,7 +238,7 @@ class Pathfinder:
     ARENA_SIZE = [(5,5), (195, 195)]
     ROBOT_TGT_DIST_FROM_IMG = 30
     ROBOT_DISTANCE_FROM_OBS = 10
-    MIN_AXIS_LENGTH = 20
+    MIN_AXIS_LENGTH = 10
 
     @classmethod
     def shortest_path_between_points_strategy(cls, start, targets, obstacle_faces, obstacles, starting_face='N',
@@ -770,6 +770,8 @@ class Pathfinder:
         # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
         possible_axes = [line for line in possible_axes if not any(point_within_straight_line(obs, *line) for obs in obstacles)]
 
+        print(possible_axes)
+
         if fixed_x:
             possible_axes = [line for line in possible_axes if abs(line[0][1]-line[1][1]) >= min_axis_length ]
         else:
@@ -782,17 +784,17 @@ class Pathfinder:
         """ internal function used by generate_target_axis"""
         tx, ty = target
         min_boundary_x, min_boundary_y = cls.ARENA_SIZE[0]
-        boundary_x, boundary_y = cls.ARENA_SIZE[1]
+        max_boundary_x, max_boundary_y = cls.ARENA_SIZE[1]
         
         if obstacle_face == 'N':
-            boundary = (tx, boundary_y-10)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and ty < oy <= boundary_y)]
+            boundary = (tx, max_boundary_y-10)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and ty < oy <= max_boundary_y)]
         elif obstacle_face == 'S':
             boundary = (tx, min_boundary_y)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (ox == tx and 0 <= oy < ty)]
         elif obstacle_face == 'E':
-            boundary = (boundary_x-10, ty)
-            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (tx < ox <= boundary_x and oy == ty)]
+            boundary = (max_boundary_x-10, ty)
+            obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (tx < ox <= max_boundary_x and oy == ty)]
         elif obstacle_face == 'W':
             boundary = (min_boundary_x, ty)
             obstacles_in_axis = [(ox,oy) for (ox,oy) in obstacles if (0 <= ox < tx and oy == ty)]
