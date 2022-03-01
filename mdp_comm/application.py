@@ -105,10 +105,11 @@ class Application:
         data = self.obstacle_storage.extract_required_format()
         result = pathfind(*data)
 
-        path = result['pathfinding']['moves'][0]
-        print(path)
-        path = self._parse_path(path)
-        self._move_path(path, capture=False)
+        path = result['pathfinding']['moves']
+        for sub_path in path:
+            print(sub_path)
+            sub_path = self._parse_path(sub_path)
+            self._move_path(sub_path, capture=False)
 
     def _parse_path(self, path):
         pth = []
