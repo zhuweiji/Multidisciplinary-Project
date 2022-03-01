@@ -235,7 +235,7 @@ class Pathfinder:
 
     OBSTACLE_SIZE = (10, 10)
     ROBOT_SIZE = (30, 30)
-    ARENA_SIZE = (190, 190)
+    ARENA_SIZE = [(5,5), (195, 195)]
     ROBOT_TGT_DIST_FROM_IMG = 30
     ROBOT_DISTANCE_FROM_OBS = 10
 
@@ -755,6 +755,7 @@ class Pathfinder:
         possible_axes = [
             (points_in_axis[i], points_in_axis[i+1]) for i in range(len(points_in_axis)-1)
             ]
+
         # filter away possible axes that have length less than min 
         # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
         possible_axes = [line for line in possible_axes if not any(point_within_straight_line(obs, *line) for obs in obstacles)]
@@ -770,7 +771,7 @@ class Pathfinder:
     def _get_boundary_and_obstacles_in_line(cls, target, obstacle_face, obstacles):
         """ internal function used by generate_target_axis"""
         tx, ty = target
-        boundary_x, boundary_y = cls.ARENA_SIZE
+        boundary_x, boundary_y = cls.ARENA_SIZE[1]
         
         if obstacle_face == 'N':
             boundary = (tx, boundary_y-10)
@@ -989,7 +990,7 @@ class Pathfinder:
 
     @classmethod
     def points_are_out_of_bounds(cls, x, y):
-        return x < 0 or y < 0 or x > cls.ARENA_SIZE[0] or y > cls.ARENA_SIZE[1]
+        return x < cls.ARENA_SIZE[0][0] or y < cls.ARENA_SIZE[0][1] or x > cls.ARENA_SIZE[1][0] or y > cls.ARENA_SIZE[1][1]
 
     @classmethod
     def h_function(cls, src_x, src_y, tgt_x, tgt_y):
