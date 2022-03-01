@@ -68,7 +68,7 @@ class Robot:
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
         'RIGHT_FWD':       (32, 32),
-        'RIGHT_RVR':       (32, -35),
+        'RIGHT_RVR':       (32, -32),
         'LEFT_FWD':        (-32, 32),
         'LEFT_RVR':        (-32, -32),
         '3PT_RIGHT':       (0, 0),
@@ -87,22 +87,22 @@ class Robot:
             *[(0, i) for i in range(10, abs(moveset['RIGHT_FWD'][1])+1, 10)],
             *[(i, moveset['RIGHT_FWD'][1])
               for i in range(10, abs(moveset['RIGHT_FWD'][0])+1, 10)],
-                ],
+                ] + [moveset['RIGHT_FWD']],
         'RIGHT_RVR': [
             *[(0, -i) for i in range(10, abs(moveset['RIGHT_RVR'][1])+1, 10)],
             *[(i, moveset['RIGHT_RVR'][1])
               for i in range(10, abs(moveset['RIGHT_RVR'][0])+1, 10)],
-                ],
+                ] + [moveset['RIGHT_RVR']],
         'LEFT_FWD':  [
             *[(0, i) for i in range(10, abs(moveset['LEFT_FWD'][1])+1, 10)],
             *[(-i, moveset['LEFT_FWD'][1])
               for i in range(10, abs(moveset['LEFT_FWD'][0])+1, 10)],
-                ],
+                ] + [moveset['LEFT_FWD']],
         'LEFT_RVR':  [
             *[(0, -i) for i in range(10, abs(moveset['LEFT_RVR'][1])+1, 10)],
             *[(-i, moveset['LEFT_RVR'][1])
               for i in range(10, abs(moveset['LEFT_RVR'][0])+1, 10)],
-                ],
+                ] + [moveset['LEFT_RVR']],
 
         "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (0, -10), (10, 10),
                         (10, -10), (14, 10), (14, 0), (14, -10)] + [moveset['3PT_RIGHT']],
@@ -508,7 +508,7 @@ class Pathfinder:
 
     @classmethod
     def find_path_to_point(cls, start, target, starting_face='N', obstacles=None,
-                            direction_at_target=None, update_callback=None, moveset=None, final_point_leweway=5):
+                            update_callback=None, moveset=None, final_point_leweway=5):
         '''	
         Find a reasonable path from starting location to destination location
         Pathfinding algorothm is A*
@@ -552,6 +552,7 @@ class Pathfinder:
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
             (current_x, current_y) = current_node
+
             visited_key = (current_node, facing_direction)
             visited_nodes.add(visited_key)
 
@@ -566,6 +567,14 @@ class Pathfinder:
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
                 if not cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles):
                     continue
+                
+                if current_node ==  (47, 111) and final_x==79 and final_y==143:
+                    print()
+                    print(cls.check_all_points_on_path_valid(path_to_keep_clear, obstacles))
+                    print(path_to_keep_clear)
+                    print(obstacles)
+                    print('IT MADE IT THROUGH')
+                    print('-'*50)
 
                 path_to_next = [*path_to_current, (final_x, final_y)]
                 movetypes_to_next = [*movetypes_to_current, movetype]
@@ -756,8 +765,6 @@ class Pathfinder:
         possible_axes = [
             (points_in_axis[i], points_in_axis[i+1]) for i in range(len(points_in_axis)-1)
             ]
-
-        print(possible_axes)
 
         # filter away possible axes that have length less than min 
         # assert min_axis_length > max(cls.OBSTACLE_SIZE), "add new filter to remove obstacles between points, otherwise possible axis will intersect obstacle"
@@ -963,7 +970,7 @@ class Pathfinder:
                 return False
             
             for (ox, oy) in obstacles:
-                if point_within_rect(x, y, cls.ROBOT_DISTANCE_FROM_OBS, cls.ROBOT_DISTANCE_FROM_OBS, ox, oy):
+                if point_within_rect(x, y, cls.ROBOT_DISTANCE_FROM_OBS+5, cls.ROBOT_DISTANCE_FROM_OBS+5, ox, oy):
                     return False
 
         return True

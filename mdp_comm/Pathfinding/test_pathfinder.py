@@ -1,6 +1,7 @@
 import pytest
 from pathfind import Pathfinder, Robot, point_within_straight_line, point_within_rect
 from GUI_temp import TempGUI
+import main
 
 def test_robot_moveset():
     """ Test that robot moveset and atomic moveset are defined properly"""
@@ -269,39 +270,58 @@ def test_get_path_directed():
     
     # TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
 
-def test_shortest_path_between_points_strategy():
-    start = (0, 0)
-    starting_face = 'N'
 
-    obstacle_faces = ['N', 'W', 'S', 'N', 'W']
-    obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
+def test_regression_shortest_path_between_points_strategy():
+    # test_case = [[(180, 0), (190, 30), (80, 140), (90, 50), (150, 130)], ['W', 'W', 'W', 'S', 'N'], [(70, 40), (30, 170), (180, 50)]]
+    # obstacles_with_images, obstacle_faces, other_obstacles = test_case
+    
+    # result = main.pathfind(obstacle_faces=obstacle_faces,
+    # obstacles_with_images=obstacles_with_images,
+    # other_obstacles=other_obstacles)
 
-    targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
+    raise NotImplementedError
+    
+# def test_shortest_path_between_points_strategy():
+#     start = (0, 0)
+#     starting_face = 'N'
 
-    overall_result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
-    result = overall_result['pathfinding']
-    traversal_order = overall_result['traversal_order']
+#     obstacle_faces = ['N', 'W', 'S', 'N', 'W']
+#     obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
 
-    print(f'{traversal_order=}')
-    path, moves = result['path'], result['moves']
+#     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
 
-    print(f'{moves=}')
-    print()
-    print(f'{path=}')
+#     overall_result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
+#     result = overall_result['pathfinding']
+#     traversal_order = overall_result['traversal_order']
 
-    path = Pathfinder.flatten_output(path)
-    moves = Pathfinder.flatten_output(moves)
-    path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+#     print(f'{traversal_order=}')
+#     path, moves = result['path'], result['moves']
+
+#     print(f'{moves=}')
+#     print()
+#     print(f'{path=}')
+
+#     path = Pathfinder.flatten_output(path)
+#     moves = Pathfinder.flatten_output(moves)
+#     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
 
     # TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
 
 
 if __name__ == "__main__":
-    pass
+    (dx, dy), final_facing, atomic_moves = Pathfinder.agent.move_w_facing('N', 'RIGHT_FWD') 
+    
+    keep_clear_points = Pathfinder._generate_points_to_keep_clear_on_turn(47, 111, atomic_moves)
+    
 
+    # print(
+    #     Pathfinder.check_all_points_on_path_valid(
+    #     [(47, 121), (47, 131), (47, 141), (57, 143), (67, 143), (77, 143), (79, 143)], [(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)]
+    # ))
     
-    
+    print(point_within_rect(79, 143, 10,10, 85, 155))
+
 
 
     

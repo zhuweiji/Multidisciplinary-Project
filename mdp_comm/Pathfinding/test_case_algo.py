@@ -125,7 +125,8 @@ if __name__ == "__main__":
     #     TempGUI.plot_targets_and_path(start=[], targets=targets, path=obstacles_with_images, obstacles=other_obstacles)
 
     # test_case = generate_one_test_case()
-    test_case = [[(180, 0), (190, 30), (80, 140), (90, 50), (150, 130)], ['W', 'W', 'W', 'S', 'N'], [(70, 40), (30, 170), (180, 50)]]
+    test_case = [[(110, 60), (40, 150), (100, 80), (80, 110), (80, 150)], ['E', 'S', 'N', 'W', 'E'], []]
+    # print(test_case)
     starting_face = 'N'
     
     import main
