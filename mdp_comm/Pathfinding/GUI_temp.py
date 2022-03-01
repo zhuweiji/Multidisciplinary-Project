@@ -29,6 +29,10 @@ class TempGUI:
         for i in range(len(targets)):
             plt.annotate(i, (targets_x[i], targets_y[i]))
 
+        obs_x = [get_x(obs)+5 for obs in obstacles]
+        obs_y = [get_y(obs)+5 for obs in obstacles]
+        plt.scatter(obs_x, obs_y, color='red')
+
         img_obs_x = [get_x(obs)+5 for obs in obstacles_with_images]
         img_obs_y = [get_y(obs)+5 for obs in obstacles_with_images]
         plt.scatter(img_obs_x, img_obs_y, color='tomato')
