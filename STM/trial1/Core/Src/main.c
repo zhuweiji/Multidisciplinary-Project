@@ -639,21 +639,12 @@ bool inLab = true;
 uint32_t motorAPwm = 5840; // 5820
 uint32_t motorBPwm = 5510; // 5510;
 uint32_t motorAPwmLow = 1000;
+uint32_t motorBPwmLow;
 uint32_t servoRight = 135; // measure tan 1.6/3 - set to 140 => motor will not run -> think 135 is max
 uint32_t servoLeft = 53; // old 44 // measure tan: 1.7/3
 uint32_t servoMid = 73;
 float DegConstLeft;
 float DegConstRight;
-
-if (inLab){
-	motorBPwmLow = 1050;
-	DegConstLeft = 0.95;
-	DegConstRight = 1;
-} else {
-	motorBPwmLow = 1000;
-	DegConstLeft = 1;
-	DegconstRight = 1;
-}
 
 /** measure distance **/
 bool isMeasureDis = false;
@@ -941,6 +932,20 @@ void motors(void *argument)
 	/**
 	 * note: if set encoder in different channel, may cause in first for loop, encoder not wake up yet and result in move straight no work
 	 */
+
+	/**
+	 * init the variable base on lab condition
+	 */
+	if (inLab) {
+		motorBPwmLow = 1050;
+		DegConstLeft = 0.95;
+		DegConstRight = 1;
+	} else {
+		motorBPwmLow = 1000;
+		DegConstLeft = 1;
+		DegConstRight = 1;
+	}
+
 
 	char direction = 'p'; // 'l' for left, 'r' for right, 'f' for forward
 	uint8_t completeChar = 'C';
