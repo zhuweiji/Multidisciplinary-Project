@@ -2,7 +2,7 @@ from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def pathfind(obstacle_faces, obstacles_with_images, other_obstacles, 
-            starting_face='N', start=(0,0)):  
+            starting_face='N', start=(1,1)):  
     
     obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
@@ -12,15 +12,19 @@ def pathfind(obstacle_faces, obstacles_with_images, other_obstacles,
 
 if __name__ == "__main__":
     print('running')
-    start = (0, 0)
+    start = (1, 1)
     starting_face = 'N'
 
     # obstacle_faces = ['N', 'W', 'S', 'N', 'W']
     # obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
     # obstacle_ids = ['0', '1', '2', '3', '4']
 
-    obstacles = [(80, 140),(140, 160)]
-    obstacle_faces = ['S', 'S']
+    obstacles = [(50, 120)]
+    obstacle_faces = ['S']
+    targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
+
+    # TempGUI.plot_targets_and_path(start=start, targets=targets, obstacles=obstacles)
+
 
     result = pathfind(start=start, obstacles_with_images=obstacles, obstacle_faces=obstacle_faces, other_obstacles=[], starting_face=starting_face)
     pf_results = result['pathfinding']
@@ -30,8 +34,9 @@ if __name__ == "__main__":
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
     print(path)
+    print(moves)
 
-    TempGUI.plot_targets_and_path(start=start, targets=obstacles, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
+    TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
     
 
 # def navigate_around_obstacle():

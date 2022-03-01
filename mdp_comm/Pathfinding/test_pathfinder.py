@@ -290,8 +290,15 @@ def test_shortest_path_between_points_strategy():
 
 if __name__ == "__main__":
     # test_shortest_path_between_points_strategy()
-    to_point_result = Pathfinder.find_path_to_point((0,0), (80, 140), 'N', [(80, 160)], final_point_leweway=5)
-    print(to_point_result)
+    # to_point_result = Pathfinder.find_path_to_point((0,0), (80, 140), 'N', [(80, 160)], final_point_leweway=5)
+    # print(to_point_result)
+
+    (dx,dy), new_facing, atomic_moves = Robot.move_w_facing('N', '3PT_TURN_AROUND')
+    print(atomic_moves)
+    path_to_keep_clear = Pathfinder._generate_points_to_keep_clear_on_turn(100, 100, atomic_moves)
+    print(path_to_keep_clear)
+
+    TempGUI.plot_targets_and_path(start=(100,100), targets=path_to_keep_clear, path=[], obstacles=[])
     
     
 

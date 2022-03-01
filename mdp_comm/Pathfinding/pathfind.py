@@ -67,12 +67,12 @@ class Robot:
     moveset = {
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
-        'RIGHT_FWD':       (30, 30),
-        'RIGHT_RVR':       (30, -30),
-        'LEFT_FWD':        (-30, 30),
-        'LEFT_RVR':        (-30, -30),
-        '3PT_RIGHT':       (10, 0),
-        '3PT_LEFT':        (-10, 0),
+        'RIGHT_FWD':       (32, 32),
+        'RIGHT_RVR':       (32, -35),
+        'LEFT_FWD':        (-32, 32),
+        'LEFT_RVR':        (-32, -32),
+        '3PT_RIGHT':       (0, 0),
+        '3PT_LEFT':        (0, 0),
         '3PT_TURN_AROUND': (0, 0),
     }         
     
@@ -333,10 +333,15 @@ class Pathfinder:
                     point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
                     continue
                 facing_at_point = to_point_result['final_facing']
+                coords_at_point = to_point_result['path'][-1]
                 
                 # execute reorient
-                reorient_result = cls.reorient(point_to_pathfind_to, facing_at_point, facing_at_axis, obstacles)
+                reorient_result = cls.reorient(coords_at_point, facing_at_point, facing_at_axis, obstacles)
                 if reorient_result:
+
+                    print(f'{to_point_result=}')
+                    print(f'{reorient_result=}')
+
                     reorient_facing = reorient_result['final_facing']
                     reorient_path = reorient_result['path']
                     reorient_moves = reorient_result['moves']
@@ -547,10 +552,15 @@ class Pathfinder:
 
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
-
+            # print(f'{cost=}')
+            # print(f'{current_node=}')
+            # print(f'{facing_direction=}')
+            # print(f'{path_to_current=}')
+            # print(f'{movetypes_to_current=}')
+            # print()
             (current_x, current_y) = current_node
-
             visited_nodes.add(current_node)
+
             for movetype in cls.moveset:
                 (dx, dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype) # delta-x and y from a possible movement by the robot
                 final_x, final_y = (current_x+dx, current_y+dy) # final position after the move
@@ -571,12 +581,13 @@ class Pathfinder:
                     next_cost += 1.8
                 elif movetype in ['RIGHT_RVR', 'LEFT_RVR']:
                     next_cost += 2.2
+                elif movetype in ['REVERSE']:
+                    next_cost += 0.5
 
-                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
-                    next_cost += 3
-                elif movetype == '3PT_TURN_AROUND':
-                    next_cost += 3.2
-
+                # elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    # next_cost += 3
+                # elif movetype == '3PT_TURN_AROUND':
+                    # next_cost += 3.2
 
                 if point_within_rect(tx, ty, final_point_leweway, final_point_leweway, final_x, final_y):
                 # if (final_x == tx and final_y == ty):
@@ -643,14 +654,16 @@ class Pathfinder:
                 next_cost = distance_heuristic(x,y) + cost
                 
                 if movetype in ['RIGHT_FWD', 'LEFT_FWD']:
-                    next_cost += 1.8
+                    next_cost += 1.5
                 elif movetype in ['RIGHT_RVR','LEFT_RVR']:
-                    next_cost += 2.2
+                    next_cost += 2
+                elif movetype in ['REVERSE']:
+                    next_cost += 0.5
 
-                elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
-                    next_cost += 3
-                elif movetype == '3PT_TURN_AROUND':
-                    next_cost += 3.2
+                # elif movetype in ['3PT_RIGHT', '3PT_LEFT']:
+                    # next_cost += 3
+                # elif movetype == '3PT_TURN_AROUND':
+                    # next_cost += 3.2
 
                 is_complete = False
                 same_x = tx1 == tx2
@@ -801,6 +814,8 @@ class Pathfinder:
             facing = current_facing
             coords = current_coords
             path = []
+
+            print(coords)
 
             cx,cy = coords
             for move in moves:
@@ -955,13 +970,13 @@ class Pathfinder:
     @classmethod
     def _generate_points_to_keep_clear_on_turn(cls, start_x, start_y, atomic_moves:list):
         if not isinstance(atomic_moves, list):
-            raise ValueError('')
+            raise ValueError('atomic moves must be list')
 
         result = []
         x,y = start_x, start_y
         for (dx,dy) in atomic_moves:
-            x,y = x+dx, y+dy
-            result.append((x,y))
+            fx,fy = x+dx, y+dy
+            result.append((fx,fy))
         return result
 
     @classmethod
