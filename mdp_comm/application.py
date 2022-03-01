@@ -43,7 +43,9 @@ class Application:
         msg = msg.decode()
 
         parsed = androidToRpi(msg)
-        if parsed[0] == "moving":
+        if parsed is None:
+            return
+        elif parsed[0] == "moving":
             self.send_robot_command(parsed[1])
         elif parsed[0] == "Obstacle":
             _, x, y, obstacle_id, obstacle_dir = parsed
@@ -55,6 +57,10 @@ class Application:
             self.start_discover()
         elif parsed[0] == "fastest":
             self.start_fastest()
+        elif parsed[0] == "shutdown":
+            import subprocess
+            print("shutting down")
+            subprocess.run(["shutdown", "0"])
 
     def send_robot_command(self, direction, value=None):
         if direction == "l":
@@ -84,6 +90,11 @@ class Application:
 
         elif direction == "bl":
             self.robot.write(f"\rD90\r")
+        elif direction == "fr":
+            self.robot.write(f"\rR90\r")
+
+        elif direction == "fl":
+            self.robot.write(f"\rL90\r")
 
         if self.robot.read() != "C":
             print("Panic! expected C")
