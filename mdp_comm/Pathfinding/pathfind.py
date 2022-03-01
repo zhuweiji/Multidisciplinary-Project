@@ -105,9 +105,9 @@ class Robot:
                 ],
 
         "3PT_RIGHT":  [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
-                        (-10, 10), (10, -10)] + [moveset['3PT_RIGHT']],
+                        (-10, 10), (10, -10), (14, 10), (14, 0), (14, -10)] + [moveset['3PT_RIGHT']],
         "3PT_LEFT":   [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
-                        (-10, 10), (10, -10)] + [moveset['3PT_LEFT']],
+                        (-10, 10), (10, -10), (-21, 0), (-14, -10), (-14, 10)] + [moveset['3PT_LEFT']],
         "3PT_TURN_AROUND": [(0, 0), (10, 0), (0, 10), (-10, 0), (0, -10), (10, 10), (-10, -10),
                         (-10, 10), (10, -10)] + [moveset['3PT_TURN_AROUND']],
     })(moveset)
@@ -353,8 +353,6 @@ class Pathfinder:
 
                     output['path'].append(path_to_target)
                     output['moves'].append(moves_to_target)
-                    # output['path'] = [*output['path'], *path_to_target]
-                    # output['moves'] = [*output['moves'], *moves_to_target]
 
                     output['distance'] = output['distance'] + distance_to_target
                     output['final_facing'] = reorient_facing
@@ -363,7 +361,8 @@ class Pathfinder:
 
                     break
 
-                point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
+                else:
+                    point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
             
             if not reorient_result:
                 print(f'Could not find point on target axis {axis_with_target} to reorient in')
@@ -552,20 +551,16 @@ class Pathfinder:
 
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
-            # print(f'{cost=}')
-            # print(f'{current_node=}')
-            # print(f'{facing_direction=}')
-            # print(f'{path_to_current=}')
-            # print(f'{movetypes_to_current=}')
-            # print()
             (current_x, current_y) = current_node
-            visited_nodes.add(current_node)
+            visited_key = (current_node, facing_direction)
+            visited_nodes.add(visited_key)
 
             for movetype in cls.moveset:
                 (dx, dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype) # delta-x and y from a possible movement by the robot
                 final_x, final_y = (current_x+dx, current_y+dy) # final position after the move
 
-                if (final_x, final_y) in visited_nodes:
+                neighbour_visited_key = ((final_x, final_y), final_facing)
+                if neighbour_visited_key in visited_nodes:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)
@@ -635,13 +630,15 @@ class Pathfinder:
         while queue:
             cost, current_node, facing_direction, path_to_current, movetypes_to_current = heapq.heappop(queue)
             (current_x, current_y) = current_node
-            visited_nodes.add(current_node)
+            visited_key = (current_node, facing_direction)
+            visited_nodes.add(visited_key)
 
             for movetype in cls.moveset:   
                 (dx,dy), final_facing, atomic_moves = cls.agent.move_w_facing(facing_direction, movetype)  # delta-x and y from a possible movement by the robot
                 x, y = (current_x+dx, current_y+dy) # final position after the move
                 
-                if (x,y) in visited_nodes:
+                neighbour_visited_key = ((x, y), final_facing)
+                if neighbour_visited_key in visited_nodes:
                     continue
 
                 path_to_keep_clear = cls._generate_points_to_keep_clear_on_turn(current_x, current_y, atomic_moves)

@@ -118,6 +118,15 @@ def test__get_boundary_and_obstacles_in_line():
     boundary, obstacles_in_line = Pathfinder._get_boundary_and_obstacles_in_line(target, obstacle_face, other_obstacles)
     assert obstacles_in_line == [(100,50), (100,180)]
 
+def test_generate_points_to_keep_clear_on_turn():
+    raise RuntimeError('Run this test case manually to display all the keep clear points for each move')
+    for move in Robot.moveset:
+        (dx,dy), new_facing, atomic_moves = Robot.move_w_facing('N', move)
+        print(atomic_moves)
+        path_to_keep_clear = Pathfinder._generate_points_to_keep_clear_on_turn(100, 100, atomic_moves)
+        print(path_to_keep_clear)
+
+        TempGUI.plot_targets_and_path(start=(100,100), targets=path_to_keep_clear, path=[], obstacles=[])
 
 def test_generate_target_axis():
     target = (50,150)
@@ -285,20 +294,12 @@ def test_shortest_path_between_points_strategy():
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
 
-    TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
+    # TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
 
 
 if __name__ == "__main__":
-    # test_shortest_path_between_points_strategy()
-    # to_point_result = Pathfinder.find_path_to_point((0,0), (80, 140), 'N', [(80, 160)], final_point_leweway=5)
-    # print(to_point_result)
+    pass
 
-    (dx,dy), new_facing, atomic_moves = Robot.move_w_facing('N', '3PT_TURN_AROUND')
-    print(atomic_moves)
-    path_to_keep_clear = Pathfinder._generate_points_to_keep_clear_on_turn(100, 100, atomic_moves)
-    print(path_to_keep_clear)
-
-    TempGUI.plot_targets_and_path(start=(100,100), targets=path_to_keep_clear, path=[], obstacles=[])
     
     
 
