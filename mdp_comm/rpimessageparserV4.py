@@ -41,6 +41,8 @@ def androidToRpi(message):
     return (first_word,)
   elif first_word == "fastest":
     return (first_word,)
+  elif first_word == "shutdown":
+    return (first_word,)
 # When android places down the robot on the virtual grid map, a start message gets sent to RPI
 # This will be in the form of a string "starting (x,y,0/1/2/3)"
 # 0 means the robot is facing up, 
