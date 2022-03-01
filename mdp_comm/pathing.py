@@ -63,7 +63,15 @@ class AStar:
         self.pos = pos
         self.queue = []
         self.visited = set()
+
+        self._create_semi_obstacles()
     
+    def _create_semi_obstacles(self):
+        self.semi_obstacles = set()
+        for obstacle in self.obstacle_coords:
+            for neighbour in self.get_neighbours(obstacle, cell=True):
+                self.semi_obstacles.add(neighbour)
+
     def a_star(self, goal, prev_dir):
         f = self.manhattan_distance(self.pos, goal)
         g = 0
@@ -99,19 +107,39 @@ class AStar:
 
             if self.check_valid_loc(child):
 
+                # if child in self.visited:
+                #     continue
+
+                # self.visited.add(child)
+
+                # # ensure ordering by the order get neighbours returns
+                # f = self.manhattan_distance(child, goal) + 0.00000001*ind
+                # # prefer more moves made 
+                # h = f + g - (g * 0.00001)
+                
+                # heapq.heappush(
+                #     self.queue,
+                #     self.create_queue_item(h, f, g, child, path)
+                # )
+
                 if child in self.visited:
                     continue
 
                 self.visited.add(child)
 
+                _g = g
+
+                if child in self.semi_obstacles:
+                    _g += 9
+
                 # ensure ordering by the order get neighbours returns
                 f = self.manhattan_distance(child, goal) + 0.00000001*ind
                 # prefer more moves made 
-                h = f + g - (g * 0.00001)
+                h = f + _g - (_g * 0.00001)
                 
                 heapq.heappush(
                     self.queue,
-                    self.create_queue_item(h, f, g, child, path)
+                    self.create_queue_item(h, f, _g, child, path)
                 )
 
     @staticmethod
