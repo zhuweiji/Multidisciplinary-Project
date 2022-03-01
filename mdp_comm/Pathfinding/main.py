@@ -2,8 +2,12 @@ from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def pathfind(obstacle_faces, obstacles_with_images, other_obstacles, 
-            starting_face='N', start=(10,10)):  
+            starting_face='N', start=(15,15)):  
     
+    center_coords = lambda pt: (pt[0]+5, pt[1]+5)
+    obstacles_with_images = [center_coords(pt) for pt in obstacles_with_images]
+    other_obstacles = [center_coords(pt) for pt in other_obstacles]
+
     obstacles = [*obstacles_with_images, *other_obstacles]
     targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
     result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
@@ -12,7 +16,7 @@ def pathfind(obstacle_faces, obstacles_with_images, other_obstacles,
 
 if __name__ == "__main__":
     print('running')
-    start = (1, 1)
+    start = (10, 10)
     starting_face = 'N'
 
     # obstacle_faces = ['N', 'W', 'S', 'N', 'W']
@@ -32,6 +36,7 @@ if __name__ == "__main__":
     moves = Pathfinder.flatten_output(moves)
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
+    print(moves)
     print(path)
     TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
     
