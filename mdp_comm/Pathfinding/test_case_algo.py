@@ -149,5 +149,6 @@ if __name__ == "__main__":
     print(path)
     print(moves)
 
-    TempGUI.plot_targets_and_path(start=(10,10), path=path, path_faces=path_faces, obstacles=[*obstacles_with_images, *other_obstacles], real_time=True, delay=0.8)
+    TempGUI.plot_targets_and_path(start=(10,10), path=path, path_faces=path_faces, 
+        obstacles_with_images=obstacles_with_images, obstacles=other_obstacles, real_time=True, delay=0.8)
 

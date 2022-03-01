@@ -236,7 +236,7 @@ class Pathfinder:
     OBSTACLE_SIZE = (10, 10)
     ROBOT_SIZE = (30, 30)
     ARENA_SIZE = (190, 190)
-    ROBOT_TGT_DIST_FROM_IMG = 20
+    ROBOT_TGT_DIST_FROM_IMG = 30
     ROBOT_DISTANCE_FROM_OBS = 10
 
     @classmethod

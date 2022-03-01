@@ -1,7 +1,8 @@
 from pathfind import Node
 
 class TempGUI:
-    def plot_targets_and_path(start=(0,0), targets: list=[], path: list=[], path_faces=[], obstacles: list = [],  real_time=False, delay=0.5):
+    def plot_targets_and_path(start=(0,0), targets: list=[], path: list=[], path_faces=[],
+     obstacles: list = [], obstacles_with_images=[],  real_time=False, delay=0.5):
         import matplotlib.pyplot as plt
 
         def get_x(node):
@@ -28,9 +29,9 @@ class TempGUI:
         for i in range(len(targets)):
             plt.annotate(i, (targets_x[i], targets_y[i]))
 
-        obs_x = [get_x(obs)+5 for obs in obstacles]
-        obs_y = [get_y(obs)+5 for obs in obstacles]
-        plt.scatter(obs_x, obs_y, color='r')
+        img_obs_x = [get_x(obs)+5 for obs in obstacles_with_images]
+        img_obs_y = [get_y(obs)+5 for obs in obstacles_with_images]
+        plt.scatter(img_obs_x, img_obs_y, color='tomato')
 
         path_x = [get_x(node)+5 for node in path]
         path_y = [get_y(node)+5 for node in path]

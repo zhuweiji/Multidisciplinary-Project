@@ -19,8 +19,8 @@ if __name__ == "__main__":
     # obstacles = [(40, 20), (190, 150), (50, 100), (160, 50), (120, 40)]
     # obstacle_ids = ['0', '1', '2', '3', '4']
 
-    obstacles = [(50, 120)]
-    obstacle_faces = ['S']
+    obstacles = [(130, 150), (60, 130)]
+    obstacle_faces = ['S', 'S']
     targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
 
     # TempGUI.plot_targets_and_path(start=start, targets=targets, obstacles=obstacles)
@@ -32,6 +32,7 @@ if __name__ == "__main__":
     moves = Pathfinder.flatten_output(moves)
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
 
+    print(path)
     TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
     
 
