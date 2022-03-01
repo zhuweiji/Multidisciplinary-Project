@@ -635,7 +635,7 @@ void set_wheel_direction(bool isForward){
 	}
 }
 
-bool inLab = true;
+bool inLab = false;
 uint32_t motorAPwm = 5840; // 5820
 uint32_t motorBPwm = 5510; // 5510;
 uint32_t motorAPwmLow = 1000;
@@ -716,16 +716,16 @@ void move_straight(bool isForward, float distance)
 
 	uint32_t usePwmA, usePwmB;
 	if (distance > 50){
-		usePwmA = motorAPwm;
-		usePwmB = motorBPwm;
-//		usePwmA = motorAPwmLow;
-//		usePwmB = motorBPwmLow;
+//		usePwmA = motorAPwm;
+//		usePwmB = motorBPwm;
+		usePwmA = motorAPwmLow;
+		usePwmB = motorBPwmLow;
 	} else {
 		usePwmA = motorAPwmLow;
 		usePwmB = motorBPwmLow;
 	}
 //	LED_SHOW = 1;
-	HAL_Delay(100); // delay to the encoder work properly when change direction
+	HAL_Delay(200); // delay to the encoder work properly when change direction
 	htim1.Instance->CCR4 = servoMid;
 	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, usePwmA);
 	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
@@ -819,6 +819,12 @@ float calTurnDis (int deg, bool isRight){
 int testDeg = 0;
 void turn_deg( int deg, bool isRight, bool isForward){
 	testDeg = 0;
+	float degMul;
+	if (isRight){
+		degMul = DegConstRight;
+	} else {
+		degMul = DegConstLeft;
+	}
 	set_wheel_direction(isForward);
 	uint32_t servo;
 
@@ -831,11 +837,11 @@ void turn_deg( int deg, bool isRight, bool isForward){
 		servo = servoLeft;
 	}
 	htim1.Instance->CCR4 = servo;
-	HAL_Delay(100);
+	HAL_Delay(200);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwmLow);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, motorBPwmLow);
 
-	float distance = calTurnDis(deg, isRight);
+	float distance = calTurnDis(deg * degMul, isRight);
 	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
 	cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
 	cnt1A = cnt1_A;
@@ -849,9 +855,10 @@ void turn_deg( int deg, bool isRight, bool isForward){
 //		}
 //	}
 	do {
+		HAL_Delay(5);
 		measuredDis = measure(cnt1_A, cnt1_B);
 		testVal = (uint32_t) measuredDis;
-		HAL_Delay(5);
+
 		} while (distance > measuredDis);
 	stop_rear_wheels();
   htim1.Instance->CCR4 = servoMid;
@@ -864,12 +871,24 @@ void turn_deg( int deg, bool isRight, bool isForward){
 const float R = 63.5/2;
 float d = R/2;
 void three_points_turn_90deg(bool isRight){
+
+	float deg = 30;
+
+	if (!isRight)
+	{
+		if (inLab){
+			deg = 30 * 1.06; //lab floor
+		} else {
+			deg = 30 * 1.03;
+		}
+	}
+
 	move_straight(false, 2);
-	turn_deg(30, isRight, true);
+	turn_deg(deg, isRight, true);
 	move_straight(false, d);
-	turn_deg(30, isRight, true);
+	turn_deg(deg, isRight, true);
 	move_straight(false, d);
-	turn_deg(30, isRight, true);
+	turn_deg(deg, isRight, true);
 	move_straight(false, d);
 	move_straight(false, 4);
 }
@@ -937,12 +956,14 @@ void motors(void *argument)
 	 * init the variable base on lab condition
 	 */
 	if (inLab) {
-		motorBPwmLow = 1050;
-		DegConstLeft = 0.95;
-		DegConstRight = 1;
+		motorBPwmLow = 1020;
+		DegConstLeft = 0.97;
+//		DegConstLeft = 0.95;
+//		DegConstRight = 0.94;
+		DegConstRight = 0.97;
 	} else {
-		motorBPwmLow = 1000;
-		DegConstLeft = 1;
+		motorBPwmLow = 1030;
+		DegConstLeft = 0.97;
 		DegConstRight = 1;
 	}
 
@@ -987,7 +1008,7 @@ void motors(void *argument)
 					case 'L':
 						if (indexer-1 > 1){
 							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
-							turn_deg(deg * DegConstLeft, false, true);
+							turn_deg(deg, false, true);
 							deg = 0;
 						} else {
 							three_points_turn_90deg(false);
@@ -996,7 +1017,7 @@ void motors(void *argument)
 					case 'R':
 						if (indexer-1 > 1){
 							deg = (int) arrTofloat(aRxBuffer,1,indexer-1);
-							turn_deg(deg * DegConstRight, true, true);
+							turn_deg(deg, true, true);
 							deg =0;
 						} else {
 							three_points_turn_90deg(true);
@@ -1031,11 +1052,19 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-//				turn_deg(360, false, true);
-				move_straight(true, 10);
+
+//				for (int i = 0; i < 1; ++i) {
+////					turn_deg(90, false, true);
+//					three_points_turn_90deg(false);
+//					osDelay(2000);
+//				}
+
+//				three_points_turn_90deg(false);
+//				turn_deg(90 * DegConstRight, true, true);
+				move_straight(true, 100);
 				haveTest = true;
 			}
-	  	osDelay(100);
+	  	osDelay(1000);
 	  }
   /* USER CODE END motors */
 }
