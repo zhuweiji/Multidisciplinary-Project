@@ -67,10 +67,10 @@ class Robot:
     moveset = {
         'FORWARD':         (0, 10),
         'REVERSE':         (0, -10),
-        'RIGHT_FWD':       (30, 30),
-        'RIGHT_RVR':       (30, -30),
-        'LEFT_FWD':        (-30, 30),
-        'LEFT_RVR':        (-30, -30),
+        'RIGHT_FWD':       (32, 32),
+        'RIGHT_RVR':       (32, -35),
+        'LEFT_FWD':        (-32, 32),
+        'LEFT_RVR':        (-32, -32),
         '3PT_RIGHT':       (0, 0),
         '3PT_LEFT':        (0, 0),
         '3PT_TURN_AROUND': (0, 0),
@@ -333,9 +333,10 @@ class Pathfinder:
                     point_to_pathfind_to = cls.move_one(point_to_pathfind_to, obstacle_face, step=10)
                     continue
                 facing_at_point = to_point_result['final_facing']
+                coords_at_point = to_point_result['path'][-1]
                 
                 # execute reorient
-                reorient_result = cls.reorient(point_to_pathfind_to, facing_at_point, facing_at_axis, obstacles)
+                reorient_result = cls.reorient(coords_at_point, facing_at_point, facing_at_axis, obstacles)
                 if reorient_result:
 
                     print(f'{to_point_result=}')
@@ -813,6 +814,8 @@ class Pathfinder:
             facing = current_facing
             coords = current_coords
             path = []
+
+            print(coords)
 
             cx,cy = coords
             for move in moves:
