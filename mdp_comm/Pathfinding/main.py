@@ -2,10 +2,10 @@ from pathfind import Pathfinder, Robot
 from GUI_temp import TempGUI
 
 def pathfind(obstacle_faces, obstacles_with_images, other_obstacles, 
-            starting_face='N', start=(1,1)):  
+            starting_face='N', start=(10,10)):  
     
     obstacles = [*obstacles_with_images, *other_obstacles]
-    targets = Pathfinder.generate_photo_taking_points(obstacles, obstacle_faces)
+    targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
     result = Pathfinder.shortest_path_between_points_strategy(start, targets, obstacle_faces, obstacles, starting_face)
     
     return result
@@ -31,9 +31,6 @@ if __name__ == "__main__":
     path = Pathfinder.flatten_output(path)
     moves = Pathfinder.flatten_output(moves)
     path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
-
-    print(path)
-    print(moves)
 
     TempGUI.plot_targets_and_path(start=start, targets=targets, path=path, path_faces=path_faces, obstacles=obstacles, real_time=True, delay=0.8)
     

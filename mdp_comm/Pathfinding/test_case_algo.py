@@ -1,18 +1,15 @@
 import random
 
-NUM_TEST_CASES = 10
+# def main():
+#     #TEST CASE LIST
+#     test_case_list = []
 
-def main():
-    #TEST CASE LIST
-    test_case_list = []
+#     # no_of_test_cases = int(input("Enter number of test cases: "))
 
-    # no_of_test_cases = int(input("Enter number of test cases: "))
-    no_of_test_cases = NUM_TEST_CASES
+#     for i in range(no_of_test_cases):
+#         test_case_list.append(generate_one_test_case())
 
-    for i in range(no_of_test_cases):
-        test_case_list.append(generate_one_test_case())
-
-    return test_case_list
+#     return test_case_list
     
 
 def generate_one_test_case():
@@ -116,16 +113,41 @@ if __name__ == "__main__":
     from GUI_temp import TempGUI
     from pathfind import Pathfinder
 
-    test_cases = main()
-    for i in range(NUM_TEST_CASES):
-        test_case = test_cases[i]
-        obstacles_with_images, obstacle_faces, other_obstacles = test_case
-        print(f'{obstacles_with_images=}')
-        print(f'{obstacle_faces=}')
-        print('-'*50)
-        targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
-        all_obstacles = [*obstacles_with_images, *other_obstacles]
+    # for i in range(NUM_TEST_CASES):
+    #     test_case = test_cases[i]
+    #     obstacles_with_images, obstacle_faces, other_obstacles = test_case
+    #     print(f'{obstacles_with_images=}')
+    #     print(f'{obstacle_faces=}')
+    #     print('-'*50)
+    #     targets = Pathfinder.generate_photo_taking_points(obstacles_with_images, obstacle_faces)
+    #     all_obstacles = [*obstacles_with_images, *other_obstacles]
 
-        TempGUI.plot_targets_and_path(start=[], targets=targets, path=obstacles_with_images, obstacles=other_obstacles)
+    #     TempGUI.plot_targets_and_path(start=[], targets=targets, path=obstacles_with_images, obstacles=other_obstacles)
 
+    # test_case = generate_one_test_case()
+    test_case = [[(180, 0), (190, 30), (80, 140), (90, 50), (150, 130)], ['W', 'W', 'W', 'S', 'N'], [(70, 40), (30, 170), (180, 50)]]
+    starting_face = 'N'
+    
+    import main
+    obstacles_with_images, obstacle_faces, other_obstacles = test_case
+
+    print(f'{obstacles_with_images=}')
+    print(f'{obstacle_faces=}')
+    print('-'*50)
+
+    result = main.pathfind(obstacle_faces=obstacle_faces,
+    obstacles_with_images=obstacles_with_images,
+    other_obstacles=other_obstacles, starting_face=starting_face
+)
+    
+    pf_results = result['pathfinding']
+    path, moves = pf_results['path'], pf_results['moves']
+    path = Pathfinder.flatten_output(path)
+    moves = Pathfinder.flatten_output(moves)
+    path_faces = Pathfinder.determine_all_faces_on_path(starting_face, moves)
+
+    print(path)
+    print(moves)
+
+    TempGUI.plot_targets_and_path(start=(10,10), path=path, path_faces=path_faces, obstacles=[*obstacles_with_images, *other_obstacles], real_time=True, delay=0.8)
 

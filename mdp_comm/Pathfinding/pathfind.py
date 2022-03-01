@@ -338,9 +338,8 @@ class Pathfinder:
                 # execute reorient
                 reorient_result = cls.reorient(coords_at_point, facing_at_point, facing_at_axis, obstacles)
                 if reorient_result:
-
-                    print(f'{to_point_result=}')
-                    print(f'{reorient_result=}')
+                    # print(f'{to_point_result=}')
+                    # print(f'{reorient_result=}')
 
                     reorient_facing = reorient_result['final_facing']
                     reorient_path = reorient_result['path']
