@@ -247,13 +247,14 @@ def compress(string):
                 output.append(ltr)
         else:
             output.append((ltr, count* 10))
+    print(string)
     return output
 
 def pathfind(faces, obstacle_coords, other_obstacles):
     p = Pathing(obstacle_coords, faces, other_obstacles)
     results = p.get_path()
-    instructions = list(map(lambda x: create_instructions(*x), zip(*results)))
-    instructions = compress(instructions)
+    instructions = list(map(lambda x: compress(create_instructions(*x)), zip(*results)))
+    print(f"{instructions=}")
     return instructions
 
 if __name__ == "__main__":

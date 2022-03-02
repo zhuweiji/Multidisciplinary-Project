@@ -1,7 +1,8 @@
 from mdp_comm.bluetooth.bluetooth_server import BluetoothServer
 from mdp_comm.image.image_server import ImageServer
 from mdp_comm.robot.stm32 import STM32
-from Pathfinding.main import pathfind
+# from Pathfinding.main import pathfind
+from pathing import pathfind
 
 from rpimessageparserV4 import androidToRpi
 from obstacle_storage import ObstacleStorage
@@ -13,21 +14,28 @@ path_map = {
     'LEFT_FWD': [("l", 90)],
     '3PT_LEFT': [("l",)],
     '3PT_TURN_AROUND':[("l", ), ("l", )],
+    '3PT_RIGHT': [("r",)],
     'REVERSE': [("b",)],
     'LEFT_RVR': [("bl",)],
     'RIGHT_RVR': [("br",)],
     'FORWARD': [("f", )],
-    "r":[("r",)],
-    "l":[("l",)],
-    "f":[("f",)],
-    "b":[("b",)],
+    'f':[('f', )],
+    'r':[('r', )],
+    'b':[('b', )],
+    'l':[('l', )],
+
 }
 
 def path_map_get(key):
     if key not in path_map:
-        return key
+        val = [key]
     else:
-        return path_map[key]
+        val = path_map[key]
+
+    print(val)
+    return val
+
+
 
 class Application:
     def __init__(self) -> None:
@@ -129,7 +137,8 @@ class Application:
         data = self.obstacle_storage.extract_required_format()
         result = pathfind(*data)
 
-        path = result['pathfinding']['moves']
+        # path = result['pathfinding']['moves']
+        path = result
         for sub_path in path:
             print(sub_path)
             sub_path = self._parse_path(sub_path)
@@ -139,8 +148,12 @@ class Application:
         pth = []
 
         for p in path:
+
+            # pth += path_map[p]
             pth += path_map_get(p)
 
+
+        print(pth)
         return pth
             
 
