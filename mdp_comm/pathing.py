@@ -130,7 +130,7 @@ class AStar:
                 _g = g
 
                 for n in self.get_neighbours(child, cell=True):
-                    if child in self.semi_obstacles:
+                    if n in self.semi_obstacles:
                         _g += 9
                         break
 
@@ -261,14 +261,7 @@ if __name__ == "__main__":
     # p = AStar((1,1), [(3, 3), (3, 7), (4, 1)])
     # p.a_star((6, 3), (0, 1))
 
-    p = Pathing([(1, 15), (3, 3), (3, 7), (4, 1)], ["S", "N", "N", "E"], [])
-    print(p._goals)
-    import pprint
-    results = p.get_path()
-    pprint.pprint(results)
-
-    instructions = list(map(lambda x: create_instructions(*x), zip(*results)))
-    print(instructions)
+    pathfind(["S", "N", "N", "E"], [(1, 15), (3, 3), (3, 9), (4, 1)], [])
 
 
 
