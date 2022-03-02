@@ -129,8 +129,10 @@ class AStar:
 
                 _g = g
 
-                if child in self.semi_obstacles:
-                    _g += 9
+                for n in self.get_neighbours(child, cell=True):
+                    if child in self.semi_obstacles:
+                        _g += 9
+                        break
 
                 # ensure ordering by the order get neighbours returns
                 f = self.manhattan_distance(child, goal) + 0.00000001*ind
@@ -225,10 +227,33 @@ def create_instructions(heading_at_start, path, heading_at_target):
 
     return instructions[:-1]
 
+def compress(string):
+    result = []
+    counter = 1
+    for i in range(len(string)-1):
+        if string[i+1] == string[i]:
+            counter += 1
+            if i == len(string)-2:
+                result.append((string[i+1], counter))
+        else:
+            result.append((string[i], counter))
+            counter = 1
+            if i == len(string)-2:
+                result.append((string[i+1], 1))
+    output = []
+    for ltr, count in result:
+        if ltr not in ['f','b']:
+            for i in range(count):
+                output.append(ltr)
+        else:
+            output.append((ltr, count* 10))
+    return output
+
 def pathfind(faces, obstacle_coords, other_obstacles):
     p = Pathing(obstacle_coords, faces, other_obstacles)
     results = p.get_path()
     instructions = list(map(lambda x: create_instructions(*x), zip(*results)))
+    instructions = compress(instructions)
     return instructions
 
 if __name__ == "__main__":

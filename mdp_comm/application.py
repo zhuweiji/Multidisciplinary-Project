@@ -16,8 +16,18 @@ path_map = {
     'REVERSE': [("b",)],
     'LEFT_RVR': [("bl",)],
     'RIGHT_RVR': [("br",)],
-    'FORWARD': [("f", )]
+    'FORWARD': [("f", )],
+    "r":[("r",)],
+    "l":[("l",)],
+    "f":[("f",)],
+    "b":[("b",)],
 }
+
+def path_map_get(key):
+    if key not in path_map:
+        return key
+    else:
+        return path_map[key]
 
 class Application:
     def __init__(self) -> None:
@@ -61,6 +71,9 @@ class Application:
             import subprocess
             print("shutting down")
             subprocess.run(["shutdown", "0"])
+        elif parsed[0] == "clear":
+            self.obstacle_storage = ObstacleStorage()
+
 
     def send_robot_command(self, direction, value=None):
         if direction == "l":
@@ -126,7 +139,7 @@ class Application:
         pth = []
 
         for p in path:
-            pth += path_map[p]
+            pth += path_map_get(p)
 
         return pth
             
