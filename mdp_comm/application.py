@@ -36,6 +36,29 @@ def path_map_get(key):
     return val
 
 
+facing_to_dir = {
+    (0, 1): "N",
+    (0, -1): "S",
+    (1, 0): "E",
+    (-1, 0): "W",
+}
+
+# N E S W
+right_update = {
+    (0, 1): (1, 0),
+    (1, 0): (0, -1),
+    (0, -1): (-1, 0),
+    (-1, 0): (0, 1),
+}
+
+# N W S E
+left_update = {
+    (0, 1): (-1, 0),
+    (-1, 0): (0, -1),
+    (0, -1): (1, 0),
+    (1, 0): (0, 1),
+}
+
 
 class Application:
     def __init__(self) -> None:
@@ -51,7 +74,33 @@ class Application:
             time.sleep(1)
             print("waiting for connection")
  
+        self.pos = (1, 1)
+        self.facing = (0, 1)
    
+    def update_location(self, move):
+
+        x, y = self.pos
+        d_x, d_y = self.facing
+
+        assert isinstance(move, tuple)
+
+        if move[0] == "r":
+            self.facing = right_update[self.facing]
+
+        elif move[0] == "l":
+            self.facing = left_update[self.facing]
+
+        elif move[0] == "f":
+            if len(move) > 1:
+                self.pos = (x+ (move[1]/10)*d_x, y+ (move[1]/10)*d_y)
+            else:
+                self.pos = (x+ d_x, y+ d_y)
+
+        elif move[0] == "b":
+            if len(move) > 1:
+                self.pos = (x- (move[1]/10)*d_x, y- (move[1]/10)*d_y)
+            else:
+                self.pos = (x- d_x, y- d_y)
 
     def image_server_callback(self, msg):
         print
@@ -128,7 +177,8 @@ class Application:
             if capture:
                 self.image_server.capture_and_send()
 
-            self.bluetooth_server.send(b"ROBOT,<18>,<10>,<N>")
+            self.update_location(move)
+            self.bluetooth_server.send(f"ROBOT,<{self.pos[0]}>,<{self.pos[1]}>,<{facing_to_dir[self.facing]}>".encode())
 
     def start_fastest(self):
         pass
@@ -143,6 +193,7 @@ class Application:
             print(sub_path)
             sub_path = self._parse_path(sub_path)
             self._move_path(sub_path, capture=False)
+            self.image_server.capture_and_send()
 
     def _parse_path(self, path):
         pth = []

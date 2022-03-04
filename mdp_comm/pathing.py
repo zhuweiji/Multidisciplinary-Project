@@ -99,6 +99,7 @@ class AStar:
             self.expand_children(coord, goal, g, path, prev_dir=prev_dir)
             
         print("Failed to find a path")
+
     def expand_children(self, pos, goal, g, path, prev_dir=None):
 
         g = g + 1
@@ -224,6 +225,9 @@ def create_instructions(heading_at_start, path, heading_at_target):
                     instructions.append("l")
 
             instructions.append("f")
+
+    if instructions[-1] == "b":
+        return instructions[:-1] + ["l", "l"]
 
     return instructions[:-1]
 
