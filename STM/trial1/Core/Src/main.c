@@ -655,6 +655,7 @@ uint32_t cnt1A = 0;
 uint32_t cnt1B = 0;
 uint32_t cnt2A = 0;
 uint32_t cnt2B = 0;
+int diffSpeed = 0;
 
 bool isDownA = false;
 bool isDownB = false;
@@ -703,6 +704,23 @@ float measure (int cnt1_A, int cnt1_B){
   return (disA + disB)/2;
 }
 
+float measureDiffVelo (int cnt1_A, int cnt1_B, int oldTick){
+	float veloA, veloB;
+	int cnt2_A, cnt2_B, diff_A, diff_B;
+	isDownA = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
+	isDownB = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3);
+	cnt2_A = __HAL_TIM_GET_COUNTER(&htim2);
+	cnt2_B = __HAL_TIM_GET_COUNTER(&htim3);
+
+	diff_A = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), cnt1_A, __HAL_TIM_GET_COUNTER(&htim2));
+	diff_B = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), cnt1_B, __HAL_TIM_GET_COUNTER(&htim3));
+
+	int tick = HAL_GetTick() - oldTick;
+	veloA = diff_A*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
+	veloB = diff_B*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
+  return veloB-veloA;
+}
+
 /* distance should be in cm*/
 void move_straight(bool isForward, float distance)
 {
@@ -712,7 +730,9 @@ void move_straight(bool isForward, float distance)
 //	uint8_t hello_A[20];
 	isMeasureDis = true; // trigger measure distance
 	float measuredDis = 0;
-	int cnt1_A, cnt1_B;
+	float diffVelo = 0; // veloB-veloA;
+	int cnt1_A, cnt1_B, cnt1_velo_A, cnt1_velo_B;
+	int oldTick;
 
 	uint32_t usePwmA, usePwmB;
 	if (distance > 50){
@@ -724,6 +744,10 @@ void move_straight(bool isForward, float distance)
 		usePwmA = motorAPwmLow;
 		usePwmB = motorBPwmLow;
 	}
+	if (! isForward){
+		usePwmA = 2000;
+		usePwmB = 2350;
+	}
 //	LED_SHOW = 1;
 	HAL_Delay(200); // delay to the encoder work properly when change direction
 	htim1.Instance->CCR4 = servoMid;
@@ -732,10 +756,36 @@ void move_straight(bool isForward, float distance)
 
 	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
   cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+  cnt1_velo_A = cnt1_A;
+  cnt1_velo_B = cnt1_B;
+  oldTick = HAL_GetTick();
 	do {
-		HAL_Delay(10);
+		HAL_Delay(5);
 		measuredDis = measure(cnt1_A, cnt1_B);
-		testVal = (uint32_t) measuredDis;
+		if (isForward){
+			diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
+			uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+			if (addValue == 0){
+				addValue += 1;
+			}
+			if (diffVelo >= 0.05){
+				usePwmB -= addValue;
+				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+			} else if (diffVelo <= -0.05) {
+				usePwmB += addValue;
+				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+			}
+			testVal = addValue;
+			diffSpeed = diffVelo;
+		}
+		// debug
+//		testVal = addValue;
+//		diffSpeed = diffVelo;
+
+		// update for speed
+		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
+	  cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
+		oldTick = HAL_GetTick();
 	} while (distance > measuredDis);
 //	LED_SHOW = 0;
 	isMeasureDis = false; // stop measure
@@ -829,7 +879,10 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	uint32_t servo;
 
 	float measuredDis = 0;
-	int cnt1_A, cnt1_B;
+	float diffVelo = 0; // veloB-veloA; - cm/s
+	uint32_t usePwmB = motorBPwmLow;
+	int cnt1_A, cnt1_B, cnt1_velo_A, cnt1_velo_B;
+	int oldTick;
 
 	if (isRight){
 		servo = servoRight;
@@ -839,26 +892,43 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	htim1.Instance->CCR4 = servo;
 	HAL_Delay(200);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwmLow);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, motorBPwmLow);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, usePwmB);
 
 	float distance = calTurnDis(deg * degMul, isRight);
 	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
 	cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
 	cnt1A = cnt1_A;
 	cnt1B = cnt1_B;
-//	while (distance > measuredDis) {
-//		deltaT = HAL_GetTick() - tick;
-//		if (deltaT > 10L){
-//			measuredDis = measure(cnt1_A, cnt1_B);
-//			testVal = (uint32_t) measuredDis;
-//			tick = HAL_GetTick();
-//		}
-//	}
+
+	// for speed control
+	cnt1_velo_A = cnt1_A;
+	cnt1_velo_B = cnt1_B;
+	oldTick = HAL_GetTick();
 	do {
 		HAL_Delay(5);
+		diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
 		measuredDis = measure(cnt1_A, cnt1_B);
-		testVal = (uint32_t) measuredDis;
+//		if (diffVelo >= 0.2 || diffVelo <= -0.2){
+//			usePwmB += (int)  ceil(diffVelo/2);
+//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+//		}
+		uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+		if (addValue == 0){
+			addValue += 1;
+		}
+		if (diffVelo >= 0.05){
+			usePwmB -= addValue;
+			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+		} else if (diffVelo <= -0.05) {
+			usePwmB += addValue;
+			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+		}
+		testVal = addValue;
 
+		// update for speed
+		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
+		cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
+		oldTick = HAL_GetTick();
 		} while (distance > measuredDis);
 	stop_rear_wheels();
   htim1.Instance->CCR4 = servoMid;
@@ -1059,12 +1129,9 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-
-				for (int i = 0; i < 4; ++i) {
-					three_points_turn_90deg(true);
-					osDelay(2000);
-				}
-
+				move_straight(false, 100);
+				HAL_Delay(1000);
+				move_straight(true, 100);
 //				three_points_turn_90deg(false);
 //				turn_deg(90 * DegConstRight, true, true);
 //				three_points_turn_90deg(false);
@@ -1136,11 +1203,11 @@ void show(void *argument)
 			sprintf(hello, "DiffB: %d", diffB);
 			OLED_ShowString(10, 30, hello);
 //
-//			sprintf(hello, "Cnt1B: %d", cnt1B);
-//			OLED_ShowString(10, 40, hello);
+			sprintf(hello, "Diffspeed: %d", diffSpeed);
+			OLED_ShowString(10, 40, hello);
 //
-//			sprintf(hello, "Cnt2B: %d", cnt2B);
-//			OLED_ShowString(10, 50, hello);
+			sprintf(hello, "Measuring: %d", isMeasureDis);
+			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);
   }
