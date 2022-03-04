@@ -906,29 +906,29 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	oldTick = HAL_GetTick();
 	do {
 		HAL_Delay(5);
-		diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
+		//diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
 		measuredDis = measure(cnt1_A, cnt1_B);
 //		if (diffVelo >= 0.2 || diffVelo <= -0.2){
 //			usePwmB += (int)  ceil(diffVelo/2);
 //			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
 //		}
-		uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
-		if (addValue == 0){
-			addValue += 1;
-		}
-		if (diffVelo >= 0.05){
-			usePwmB -= addValue;
-			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
-		} else if (diffVelo <= -0.05) {
-			usePwmB += addValue;
-			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
-		}
-		testVal = addValue;
+//		uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+//		if (addValue == 0){
+//			addValue += 1;
+//		}
+//		if (diffVelo >= 0.05){
+//			usePwmB -= addValue;
+//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+//		} else if (diffVelo <= -0.05) {
+//			usePwmB += addValue;
+//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+//		}
+//		testVal = addValue;
 
 		// update for speed
-		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
-		cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
-		oldTick = HAL_GetTick();
+//		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
+//		cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
+//		oldTick = HAL_GetTick();
 		} while (distance > measuredDis);
 	stop_rear_wheels();
   htim1.Instance->CCR4 = servoMid;
@@ -949,13 +949,13 @@ void three_points_turn_90deg(bool isRight){
 		if (inLab){
 			deg = 30 * 1.06; //lab floor
 		} else {
-			deg = 30 * 1.1;
+			deg = 30 * 1.175;
 		}
 	} else {
 		if (inLab){
 			deg = 30 * 1.06; //lab floor
 		} else {
-			deg = 30 * 1.035;
+			deg = 30 * 1.094;
 		}
 	}
 
