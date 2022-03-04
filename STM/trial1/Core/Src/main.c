@@ -879,7 +879,13 @@ void three_points_turn_90deg(bool isRight){
 		if (inLab){
 			deg = 30 * 1.06; //lab floor
 		} else {
-			deg = 30 * 1.03;
+			deg = 30 * 1.1;
+		}
+	} else {
+		if (inLab){
+			deg = 30 * 1.06; //lab floor
+		} else {
+			deg = 30 * 1.035;
 		}
 	}
 
@@ -956,13 +962,14 @@ void motors(void *argument)
 	 * init the variable base on lab condition
 	 */
 	if (inLab) {
+//		motorBPwmLow = 1030;
 		motorBPwmLow = 1020;
 		DegConstLeft = 0.97;
-//		DegConstLeft = 0.95;
-//		DegConstRight = 0.94;
 		DegConstRight = 0.97;
 	} else {
-		motorBPwmLow = 1030;
+//		motorBPwmLow = 1030;
+		motorBPwmLow = 2100; //2300
+		motorAPwmLow = 2100;
 		DegConstLeft = 0.97;
 		DegConstRight = 1;
 	}
@@ -1053,15 +1060,15 @@ void motors(void *argument)
 /* for test */
 			if (! haveTest){
 
-//				for (int i = 0; i < 1; ++i) {
-////					turn_deg(90, false, true);
-//					three_points_turn_90deg(false);
-//					osDelay(2000);
-//				}
+				for (int i = 0; i < 4; ++i) {
+					three_points_turn_90deg(true);
+					osDelay(2000);
+				}
 
 //				three_points_turn_90deg(false);
 //				turn_deg(90 * DegConstRight, true, true);
-				move_straight(true, 100);
+//				three_points_turn_90deg(false);
+//				move_straight(true, 100);
 				haveTest = true;
 			}
 	  	osDelay(1000);
