@@ -745,13 +745,13 @@ void move_straight(bool isForward, float distance)
 		usePwmB = motorBPwmLow;
 	}
 
-	usePwmA = 3000;  // forward outside lab 2000
-	usePwmB = 3000;  // forward outside lab 2375/2300 for whatever the fuck reasons
+	usePwmA = 3000;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
+	usePwmB = 3565;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
 
 	if (!isForward)
 	{
 		usePwmA = 3000;
-		usePwmB =3550;
+		usePwmB = 4150;
 	}
 
 //	LED_SHOW = 1;
@@ -770,28 +770,92 @@ void move_straight(bool isForward, float distance)
 		measuredDis = measure(cnt1_A, cnt1_B);
 //		if (isForward){
 //			diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
-//			uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
-//			if (addValue == 0){
-//				addValue += 1;
-//			}
+////			uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+////			if (addValue == 0){
+////				addValue += 1;
+////			}
 //			if (diffVelo >= 0.05){
-//				usePwmB -= addValue;
+//				usePwmB -= 30;
+//				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+////			} else if (diffVelo <= -0.05) {
+////				usePwmB += 135;
+//////				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+////			}
+//	//		testVal = addValue;
+//	//		diffSpeed = diffVelo;
+//		}
+
+//		if (!isForward){
+//			diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
+////			uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+////			if (addValue == 0){
+////				addValue += 1;
+////			}
+//			if (diffVelo >= 0.05){
+//				usePwmB -= 30;
 //				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
 //			} else if (diffVelo <= -0.05) {
-//				usePwmB += addValue;
+//				usePwmB += 555;
 //				__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
 //			}
-//			testVal = addValue;
-//			diffSpeed = diffVelo;
-//		}
-		// debug
-//		testVal = addValue;
+//	//		testVal = addValue;
+////			diffSpeed = diffVelo;
+////		}
+////		 debug
+//	//	testVal = addValue;
 //		diffSpeed = diffVelo;
 
-		// update for speed
+//		 update for speed
 //		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
 //	  cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
 //		oldTick = HAL_GetTick();
+	} while (distance > measuredDis);
+//	LED_SHOW = 0;
+	isMeasureDis = false; // stop measure
+	stop_rear_wheels();
+}
+
+/* distance should be in cm ALT FUNCTION FOR THREE POINT*/
+void move_straight_three_point(bool isForward, float distance)
+{
+//	uint32_t distance_ticks = ((distance/100)/(0.065*3.1416)) / (speedConstant/330*36) *60 * 1000;
+	//(1*1.24/(0.065*3.1416)) / (1180/330*36) *60 * 1000
+	set_wheel_direction(isForward);
+//	uint8_t hello_A[20];
+	isMeasureDis = true; // trigger measure distance
+	float measuredDis = 0;
+	float diffVelo = 0; // veloB-veloA;
+	int cnt1_A, cnt1_B, cnt1_velo_A, cnt1_velo_B;
+	int oldTick;
+	htim1.Instance->CCR4 = 74; // see how
+	uint32_t usePwmA, usePwmB;
+	if (distance > 50){
+//		usePwmA = motorAPwm;
+//		usePwmB = motorBPwm;
+		usePwmA = motorAPwmLow;
+		usePwmB = motorBPwmLow;
+	} else {
+		usePwmA = motorAPwmLow;
+		usePwmB = motorBPwmLow;
+	}
+
+	usePwmA = 3000;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
+	usePwmB = 3550;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
+
+	HAL_Delay(200); // delay to the encoder work properly when change direction
+	htim1.Instance->CCR4 = servoMid;
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, usePwmA);
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+
+	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
+	cnt1_B = __HAL_TIM_GET_COUNTER(&htim3);
+	cnt1_velo_A = cnt1_A;
+	cnt1_velo_B = cnt1_B;
+
+  oldTick = HAL_GetTick();
+	do {
+		HAL_Delay(5);
+		measuredDis = measure(cnt1_A, cnt1_B);
 	} while (distance > measuredDis);
 //	LED_SHOW = 0;
 	isMeasureDis = false; // stop measure
@@ -955,24 +1019,24 @@ void three_points_turn_90deg(bool isRight){
 		if (inLab){
 			deg = 30 * 1.06; //lab floor
 		} else {
-			deg = 30 * 1.098;
+			deg = 30 * 1.198;
 		}
 	} else {
 		if (inLab){
 			deg = 30 * 1.06; //lab floor
 		} else {
-			deg = 30 * 1.094;
+			deg = 30 * 1.235;
 		}
 	}
 
-	move_straight(false, 2);
+	move_straight_three_point(false, 2);
 	turn_deg(deg, isRight, true);
-	move_straight(false, d);
+	move_straight_three_point(false, d);
 	turn_deg(deg, isRight, true);
-	move_straight(false, d);
+	move_straight_three_point(false, d);
 	turn_deg(deg, isRight, true);
-	move_straight(false, d);
-	move_straight(false, 4);
+	move_straight_three_point(false, d);
+	move_straight_three_point(false, 2);
 }
 // end motors function
 /* USER CODE END 4 */
@@ -1135,12 +1199,16 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
+				HAL_Delay(500);
+				move_straight(false, 100);
 				HAL_Delay(1000);
-//				move_straight(false, 200);
-				three_points_turn_90deg(false);
-//				turn_deg(90 * DegConstRight, true, true);
+				move_straight(false, 100);
+//				move_straight_three_point(true,5);
+//				move_straight_three_point(false,5);
 //				three_points_turn_90deg(false);
-//				move_straight(true, 200);
+//				turn_deg(90 * DegConstRight, true, true);
+//				three_points_turn_90deg(true);
+//				move_straight(true, 100);
 				haveTest = true;
 			}
 	  	osDelay(1000);
