@@ -25,6 +25,7 @@
 #include "oled.h"
 #include "math.h"
 #include "stdbool.h"
+#include "pid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -812,6 +813,89 @@ void move_straight(bool isForward, float distance)
 	} while (distance > measuredDis);
 //	LED_SHOW = 0;
 	isMeasureDis = false; // stop measure
+	stop_rear_wheels();
+}
+
+void move_straight_PID(bool isForward, float distance){
+	set_wheel_direction(isForward);
+	HAL_Delay(200); // delay to the encoder work properly when change direction
+	htim1.Instance->CCR4 = servoMid;
+
+	double offset = 0;
+	double error = 0;
+	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+	uint16_t pwmValA = 3000;
+	uint16_t pwmValB = 3000;
+
+	long leftcount = 0;
+	long rightcount = 0;
+	long currentcount = 0;
+
+	float countsPerRev = 1320; //cntA value per wheel revolution (1320)
+	float wheelDiam = 6.43;
+	float wheelCirc = M_PI * wheelDiam;
+
+	float numRev = distance/wheelCirc;
+	float targetcount = numRev * countsPerRev;
+
+///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+	PID_TypeDef pidControlDiff;
+
+	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
+	PID(&pidControlDiff, &error, &offset, 0, 0, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControlDiff, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControlDiff, 10);
+	PID_SetOutputLimits(&pidControlDiff, -400, 400); //600
+//////////////////////////////////////////////////////////////////
+
+	//reset counter values
+	__HAL_TIM_SET_COUNTER(&htim2,0);
+	__HAL_TIM_SET_COUNTER(&htim3,0);
+
+	 if(isForward){ //if forward use leftcount
+		 currentcount = leftcount;
+	 }
+	 else { //if backward use rightcount
+		 currentcount = rightcount;
+	 }
+
+	do {
+			HAL_Delay(30);
+			leftcount = __HAL_TIM_GET_COUNTER(&htim2);
+			rightcount = __HAL_TIM_GET_COUNTER(&htim3);
+
+//////////////////////////PID PART//////////////////////////////////////////////////
+			/** I think the rightcount = 65535 - right count may not necessary **/
+			if(isForward){
+				 if(rightcount != 0){
+					 rightcount = 65535 - rightcount;
+				 }
+				 error = leftcount - rightcount;
+			}
+			else{
+				 if(leftcount != 0){
+					 leftcount = 65535 - leftcount;
+				 }
+				 error = leftcount - rightcount;
+			}
+
+			 //pid computation
+			 PID_Compute(&pidControlDiff);
+//////////////////////////////////////////////////////////////////////////////
+
+			 //update pwmValue
+			 pwmValA = pwmValA + offset;
+			 pwmValB = pwmValB - offset;
+			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+
+			 if(isForward){ //if forward use leftcount
+				 currentcount = leftcount;
+			 }
+			 else{ //if backward use rightcount
+				 currentcount = rightcount;
+			 }
+		} while ( currentcount < targetcount);
 	stop_rear_wheels();
 }
 
