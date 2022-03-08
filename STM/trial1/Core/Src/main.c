@@ -650,8 +650,8 @@ float DegConstRight;
 /** measure distance **/
 bool isMeasureDis = false;
 bool overFlow = false;
-uint32_t diffA = 0;
-uint32_t diffB = 0;
+float diffA = 0;
+float diffB = 0;
 uint32_t cnt1A = 0;
 uint32_t cnt1B = 0;
 uint32_t cnt2A = 0;
@@ -717,9 +717,29 @@ float measureDiffVelo (int cnt1_A, int cnt1_B, int oldTick){
 	diff_B = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), cnt1_B, __HAL_TIM_GET_COUNTER(&htim3));
 
 	int tick = HAL_GetTick() - oldTick;
-	veloA = diff_A*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
-	veloB = diff_B*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
+//	veloA = diff_A*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
+//	veloB = diff_B*M_PI/(330*4)*5.65/tick*1000; // real is 6.5
+
+	veloA = diff_A/tick*1000; // real is 6.5
+	veloB = diff_B/tick*1000; // real is 6.5
   return veloB-veloA;
+}
+
+float measureDiffCount (int cnt1, bool isRight, int oldTick){
+	float veloA, veloB;
+	int cnt2, diff;
+	bool isDown;
+	if (isRight){
+		isDown = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
+		cnt2 = __HAL_TIM_GET_COUNTER(&htim2);
+	} else {
+		isDown = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3);
+		cnt2 = __HAL_TIM_GET_COUNTER(&htim3);
+	}
+	diff = findDiffTime(isDown, cnt1, cnt2);
+	testVal = diff;
+	int tick = HAL_GetTick() - oldTick;
+	return (float)diff/(float)tick*1000; // unit it count/s
 }
 
 /* distance should be in cm*/
@@ -824,8 +844,10 @@ void move_straight_PID(bool isForward, float distance){
 	double offset = 0;
 	double error = 0;
 	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
-	uint16_t pwmValA = 3000;
-	uint16_t pwmValB = 3000;
+	uint16_t initPwm = 5000;
+	uint16_t pwmValA = initPwm;
+	uint16_t pwmValB = initPwm;
+	uint32_t tick;
 
 	long leftcount = 0;
 	long rightcount = 0;
@@ -842,7 +864,7 @@ void move_straight_PID(bool isForward, float distance){
 	PID_TypeDef pidControlDiff;
 
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
-	PID(&pidControlDiff, &error, &offset, 0, 0, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID(&pidControlDiff, &error, &offset, 0, 0.285, 0.07, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControlDiff, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControlDiff, 10);
 	PID_SetOutputLimits(&pidControlDiff, -400, 400); //600
@@ -858,45 +880,158 @@ void move_straight_PID(bool isForward, float distance){
 	 else { //if backward use rightcount
 		 currentcount = rightcount;
 	 }
+	 isMeasureDis = true;
 
 	do {
 			HAL_Delay(30);
-			leftcount = __HAL_TIM_GET_COUNTER(&htim2);
-			rightcount = __HAL_TIM_GET_COUNTER(&htim3);
+			leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+			rightcount = __HAL_TIM_GET_COUNTER(&htim2);
 
 //////////////////////////PID PART//////////////////////////////////////////////////
 			/** I think the rightcount = 65535 - right count may not necessary **/
-			if(isForward){
-				 if(rightcount != 0){
-					 rightcount = 65535 - rightcount;
-				 }
-				 error = leftcount - rightcount;
-			}
-			else{
-				 if(leftcount != 0){
-					 leftcount = 65535 - leftcount;
-				 }
-				 error = leftcount - rightcount;
-			}
+//			if(isForward){
+//				 if(rightcount != 0){
+//					 rightcount = 65535 - rightcount;
+//				 }
+//				 error = leftcount - rightcount;
+//			}
+//			else{
+//				 if(leftcount != 0){
+//					 leftcount = 65535 - leftcount;
+//				 }
+//				 error = leftcount - rightcount;
+//			}
+			error = leftcount-rightcount;
 
 			 //pid computation
 			 PID_Compute(&pidControlDiff);
 //////////////////////////////////////////////////////////////////////////////
 
 			 //update pwmValue
-			 pwmValA = pwmValA + offset;
-			 pwmValB = pwmValB - offset;
+			 pwmValA = initPwm + offset;
+			 pwmValB = initPwm - offset;
 			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
 			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
 
 			 if(isForward){ //if forward use leftcount
-				 currentcount = leftcount;
-			 }
-			 else{ //if backward use rightcount
 				 currentcount = rightcount;
 			 }
+			 else{ //if backward use rightcount
+				 currentcount = leftcount;
+			 }
+			 diffA = rightcount;
+			 diffB = leftcount;
+			 testVal = currentcount;
+		} while ( currentcount < targetcount);
+	isMeasureDis = false;
+	stop_rear_wheels();
+}
+
+void move_straight_PID_2_Wheels(bool isForward, float distance){
+	set_wheel_direction(isForward);
+	HAL_Delay(200); // delay to the encoder work properly when change direction
+	htim1.Instance->CCR4 = servoMid;
+
+	double offset = 0;
+	double error = 0;
+	double desiredCountPerSecond = 4000;
+	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+	uint16_t initPwm = 3000;
+	uint16_t pwmValA = initPwm;
+	uint16_t pwmValB = initPwm;
+	uint32_t tick;
+
+	long leftcount = 0;
+	long rightcount = 0;
+	float currentcount = 0;
+
+	float countsPerRev = 1320; //cntA value per wheel revolution (1320)
+	float wheelDiam = 6.43;
+	float wheelCirc = M_PI * wheelDiam;
+
+	float numRev = distance/wheelCirc;
+	float targetcount = numRev * countsPerRev;
+
+///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+	PID_TypeDef pidControlControl;
+
+	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
+	// cur 2 wheel: 0.15 0.75 0.02 - not work
+	PID(&pidControlControl, &error, &offset, 0, 1, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControlControl, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControlControl, 10);
+	PID_SetOutputLimits(&pidControlControl, -600, 600); //600
+
+//////////////////////////////////////////////////////////////////
+
+	//reset counter values
+	__HAL_TIM_SET_COUNTER(&htim2,0);
+	__HAL_TIM_SET_COUNTER(&htim3,0);
+	isMeasureDis = true;
+	currentcount = (leftcount+rightcount)/2;
+
+//	__HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+//	__HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+	tick = HAL_GetTick();
+	do {
+			HAL_Delay(30);
+
+//////////////////////////PID PART//////////////////////////////////////////////////
+//			errorL = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
+//			errorL = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
+////			diffA = measureDiffCount(leftcount, false, tick);
+////			diffB = measureDiffCount(rightcount, true, tick);
+//
+//			 //pid computation
+//			 PID_Compute(&pidControlLeft);
+////			 PID_Compute(&pidControlRight);
+////////////////////////////////////////////////////////////////////////////////
+//
+//			 //update pwmValue
+//			 pwmValA = initPwm + offsetR;
+//			 pwmValB = initPwm + offsetL;
+
+//			 error = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
+//			 diffA = error;
+//			 PID_Compute(&pidControlControl);
+//			 pwmValA = initPwm + offset;
+//			 cnt1A = offset;
+//
+//			 error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
+//			 diffB = error;
+//			 PID_Compute(&pidControlControl);
+//			 pwmValB = initPwm + offset;
+//			 cnt1B = offset;
+
+			// map left to right
+//			 error = measureDiffCount(leftcount, false, tick) - measureDiffCount(rightcount, true, tick);
+//			 diffB = error;
+//			 PID_Compute(&pidControlControl);
+//			 pwmValB = initPwm + offset;
+
+			 // use old logic
+			 error = measureDiffCount(leftcount, false, tick) - measureDiffCount(rightcount, true, tick);
+			 diffB = error;
+			 PID_Compute(&pidControlControl);
+			 pwmValB = initPwm + offset;
+			 pwmValA = initPwm - offset;
+
+			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+
+			 rightcount = __HAL_TIM_GET_COUNTER(&htim2);
+			 leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+			 currentcount = (
+					 findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), 0,  leftcount)
+					 + findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), 0, rightcount)
+			 )/2;
+			 tick = HAL_GetTick();
+//
+//			 cnt1A = pwmValA;
+//			 cnt1B = pwmValB;
 		} while ( currentcount < targetcount);
 	stop_rear_wheels();
+	isMeasureDis = false;
 }
 
 /* distance should be in cm ALT FUNCTION FOR THREE POINT*/
@@ -1283,10 +1418,11 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-				HAL_Delay(500);
-				move_straight(false, 100);
-				HAL_Delay(1000);
-				move_straight(false, 100);
+//				move_straight_PID(true, 100);
+//				isMeasureDis = true;
+				move_straight_PID_2_Wheels(true, 500);
+//				HAL_Delay(1000);
+//				move_straight(true, 10);
 //				move_straight_three_point(true,5);
 //				move_straight_three_point(false,5);
 //				three_points_turn_90deg(false);
@@ -1295,7 +1431,7 @@ void motors(void *argument)
 //				move_straight(true, 100);
 				haveTest = true;
 			}
-	  	osDelay(1000);
+	  	osDelay(100);
 	  }
   /* USER CODE END motors */
 }
@@ -1354,16 +1490,16 @@ void show(void *argument)
 
 //				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
 //				OLED_ShowString(10, 10, hello);
-			sprintf(hello, "DiffA: %d", diffA);
+			sprintf(hello, "DiffA: %2f", diffA);
 			OLED_ShowString(10, 20, hello);
 
-			sprintf(hello, "DiffB: %d", diffB);
+			sprintf(hello, "DiffB: %2f", diffB);
 			OLED_ShowString(10, 30, hello);
 //
-			sprintf(hello, "Diffspeed: %d", diffSpeed);
+			sprintf(hello, "PwmA: %d", cnt1A);
 			OLED_ShowString(10, 40, hello);
 //
-			sprintf(hello, "Measuring: %d", isMeasureDis);
+			sprintf(hello, "PwmB: %d", cnt1B);
 			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);
