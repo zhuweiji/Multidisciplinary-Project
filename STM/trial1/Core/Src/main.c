@@ -824,8 +824,8 @@ void move_straight_PID(bool isForward, float distance){
 	double offset = 0;
 	double error = 0;
 	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
-	uint16_t pwmValA = 3000;
-	uint16_t pwmValB = 3000;
+	uint16_t pwmValA = 5000;  //5039;
+	uint16_t pwmValB = 5000;  //5039;
 
 	long leftcount = 0;
 	long rightcount = 0;
@@ -842,7 +842,8 @@ void move_straight_PID(bool isForward, float distance){
 	PID_TypeDef pidControlDiff;
 
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
-	PID(&pidControlDiff, &error, &offset, 0, 0, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID(&pidControlDiff, &error, &offset, 0, 0.285, 0.0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	//PID(&pidControlDiff, &error, &offset, 0, 100, 200, 10, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControlDiff, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControlDiff, 10);
 	PID_SetOutputLimits(&pidControlDiff, -400, 400); //600
@@ -870,7 +871,7 @@ void move_straight_PID(bool isForward, float distance){
 				 if(rightcount != 0){
 					 rightcount = 65535 - rightcount;
 				 }
-				 error = leftcount - rightcount;
+				 error = leftcount - rightcount -20;
 			}
 			else{
 				 if(leftcount != 0){
@@ -1284,9 +1285,9 @@ void motors(void *argument)
 /* for test */
 			if (! haveTest){
 				HAL_Delay(500);
-				move_straight(false, 100);
-				HAL_Delay(1000);
-				move_straight(false, 100);
+				move_straight_PID(true, 200);
+//				move_straight(false, 100);
+//				move_straight(false, 100);
 //				move_straight_three_point(true,5);
 //				move_straight_three_point(false,5);
 //				three_points_turn_90deg(false);
