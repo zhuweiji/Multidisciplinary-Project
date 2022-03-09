@@ -61,7 +61,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t MotorTaskHandle;
 const osThreadAttr_t MotorTask_attributes = {
   .name = "MotorTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for EncoderTask */
@@ -934,12 +934,17 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 
 	double offset = 0;
 	double error = 0;
+	double offsetR = 0;
+	double errorR = 0;
+	double initError;
 	double desiredCountPerSecond = 4000;
 	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
 	uint16_t initPwm = 3000;
+	uint16_t minPwm = 2400;
+	uint16_t maxPwm = 3600;
 	uint16_t pwmValA = initPwm;
 	uint16_t pwmValB = initPwm;
-	uint32_t tick;
+	uint32_t tick, period, count;
 
 	long leftcount = 0;
 	long rightcount = 0;
@@ -953,14 +958,24 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	float targetcount = numRev * countsPerRev;
 
 ///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
-	PID_TypeDef pidControlControl;
+	PID_TypeDef pidControl, pidControlR;
+
+	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
+	// cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405
+	PID(&pidControl, &error, &offset, 0, 1, 11.5, 0.005, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControl, 10);
+	PID_SetOutputLimits(&pidControl, -600, 600); //600
+
+//	isMeasureDis = true;
+//	PID_TypeDef pidControlR;
 
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
 	// cur 2 wheel: 0.15 0.75 0.02 - not work
-	PID(&pidControlControl, &error, &offset, 0, 1, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
-	PID_SetMode(&pidControlControl, _PID_MODE_AUTOMATIC);
-	PID_SetSampleTime(&pidControlControl, 10);
-	PID_SetOutputLimits(&pidControlControl, -600, 600); //600
+	PID2(&pidControlR, &errorR, &offsetR, 0, 1, 11.5, 0.005, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControlR, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControlR, 10);
+	PID_SetOutputLimits(&pidControlR, -600, 600); //600
 
 //////////////////////////////////////////////////////////////////
 
@@ -973,8 +988,12 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 //	__HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
 //	__HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
 	tick = HAL_GetTick();
+
+	period = tick;
+	count = 0;
+
 	do {
-			HAL_Delay(30);
+			HAL_Delay(20);
 
 //////////////////////////PID PART//////////////////////////////////////////////////
 //			errorL = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
@@ -991,17 +1010,39 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 //			 pwmValA = initPwm + offsetR;
 //			 pwmValB = initPwm + offsetL;
 
-//			 error = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
-//			 diffA = error;
-//			 PID_Compute(&pidControlControl);
-//			 pwmValA = initPwm + offset;
-//			 cnt1A = offset;
-//
-//			 error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
-//			 diffB = error;
-//			 PID_Compute(&pidControlControl);
-//			 pwmValB = initPwm + offset;
-//			 cnt1B = offset;
+			// find error
+			 errorR = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
+			 error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
+			 tick = HAL_GetTick();
+
+			 diffA = errorR;
+			 PID_Compute(&pidControlR);
+			 pwmValA = initPwm + offsetR;
+			 // simple logic
+//			 pwmValA = pwmValA - errorR/5;
+//			 if (pwmValA < minPwm){
+//				 pwmValA = minPwm;
+//			 } else if (pwmValA > maxPwm){
+//				 pwmValA = maxPwm;
+//			 }
+			 cnt1A = pwmValA;
+
+			 diffB = error;
+			 PID_Compute(&pidControl);
+			 pwmValB = initPwm + offset;
+			 // simple logic
+//			 pwmValB = pwmValB - error;
+
+			 cnt1B = pwmValB;
+
+			 // find oscillation period
+			 if (count ==0){
+				 initError = error;
+				 count = 1;
+			 } else if (fabs(error - initError) < 3){
+				 period = HAL_GetTick() - period;
+				 testVal = period;
+			 }
 
 			// map left to right
 //			 error = measureDiffCount(leftcount, false, tick) - measureDiffCount(rightcount, true, tick);
@@ -1010,11 +1051,11 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 //			 pwmValB = initPwm + offset;
 
 			 // use old logic
-			 error = measureDiffCount(leftcount, false, tick) - measureDiffCount(rightcount, true, tick);
-			 diffB = error;
-			 PID_Compute(&pidControlControl);
-			 pwmValB = initPwm + offset;
-			 pwmValA = initPwm - offset;
+//			 error = measureDiffCount(leftcount, false, tick) - measureDiffCount(rightcount, true, tick);
+//			 diffB = error;
+//			 PID_Compute(&pidControl);
+//			 pwmValB = initPwm + offset;
+//			 pwmValA = initPwm - offset;
 
 			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
 			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
@@ -1025,7 +1066,6 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 					 findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), 0,  leftcount)
 					 + findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), 0, rightcount)
 			 )/2;
-			 tick = HAL_GetTick();
 //
 //			 cnt1A = pwmValA;
 //			 cnt1B = pwmValB;
@@ -1420,7 +1460,7 @@ void motors(void *argument)
 			if (! haveTest){
 //				move_straight_PID(true, 100);
 //				isMeasureDis = true;
-				move_straight_PID_2_Wheels(true, 500);
+				move_straight_PID_2_Wheels(true, 200);
 //				HAL_Delay(1000);
 //				move_straight(true, 10);
 //				move_straight_three_point(true,5);
