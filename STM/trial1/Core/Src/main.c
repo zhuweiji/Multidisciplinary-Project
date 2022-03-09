@@ -939,9 +939,13 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	double initError;
 	double desiredCountPerSecond = 4000;
 	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+<<<<<<< HEAD
 	uint16_t initPwm = 3000;
 	uint16_t minPwm = 2400;
 	uint16_t maxPwm = 3600;
+=======
+	uint16_t initPwm = 4000;
+>>>>>>> 4c3d4e6d78f372f90409fa30855533aca0a1435f
 	uint16_t pwmValA = initPwm;
 	uint16_t pwmValB = initPwm;
 	uint32_t tick, period, count;
@@ -972,10 +976,18 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
 	// cur 2 wheel: 0.15 0.75 0.02 - not work
+<<<<<<< HEAD
 	PID2(&pidControlR, &errorR, &offsetR, 0, 1, 11.5, 0.005, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControlR, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControlR, 10);
 	PID_SetOutputLimits(&pidControlR, -600, 600); //600
+=======
+//	PID(&pidControlControl, &error, &offset, 0, 0.3, 0.05, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID(&pidControlControl, &error, &offset, 0, 0.3, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControlControl, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControlControl, 8);
+	PID_SetOutputLimits(&pidControlControl, -600, 600); //600
+>>>>>>> 4c3d4e6d78f372f90409fa30855533aca0a1435f
 
 //////////////////////////////////////////////////////////////////
 
@@ -1460,7 +1472,11 @@ void motors(void *argument)
 			if (! haveTest){
 //				move_straight_PID(true, 100);
 //				isMeasureDis = true;
+<<<<<<< HEAD
 				move_straight_PID_2_Wheels(true, 200);
+=======
+				move_straight_PID_2_Wheels(true, 150);
+>>>>>>> 4c3d4e6d78f372f90409fa30855533aca0a1435f
 //				HAL_Delay(1000);
 //				move_straight(true, 10);
 //				move_straight_three_point(true,5);
