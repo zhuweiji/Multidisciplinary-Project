@@ -940,15 +940,23 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	double desiredCountPerSecond = 4000;
 	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
 	uint16_t initPwm = 3000;
+	uint16_t initPwmA = 2900;
+	uint16_t initPwmB = 3100;
+	if (! isForward){
+		initPwmA = 2600;
+		initPwmB = 3400;
+	}
 	uint16_t minPwm = 2400;
 	uint16_t maxPwm = 3600;
 
-	uint16_t pwmValA = initPwm;
-	uint16_t pwmValB = initPwm;
+	uint16_t pwmValA = initPwmA;
+	uint16_t pwmValB = initPwmB;
 	uint32_t tick, period, count;
 
 	long leftcount = 0;
 	long rightcount = 0;
+	long countInDistanceL = 0;
+	long countInDistanceR = 0;
 	float currentcount = 0;
 
 	float countsPerRev = 1320; //cntA value per wheel revolution (1320)
@@ -959,14 +967,27 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	float targetcount = numRev * countsPerRev;
 
 ///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+	double Kp, Ki, Kd;
+	if (isForward){
+		Kp = 0.05;
+		Ki = 10;
+		Kd = 0.01;
+	} else {
+		Kp = 5;
+		Ki = 50;
+		Kd = 10;
+	}
 	PID_TypeDef pidControl, pidControlR;
 
+
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
-	// cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405
-	PID(&pidControl, &error, &offset, 0, 1, 11.5, 0.007, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	// cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405 // 9:32pm 0, 30, 0.001
+
+	// straight forward work: 0.05, 10, 0.01 - but due to luck
+	PID(&pidControl, &error, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControl, 10);
-	PID_SetOutputLimits(&pidControl, -600, 600); //600
+	PID_SetOutputLimits(&pidControl, (int)2400 - initPwmB, (int) 3600 - initPwmB); //600
 
 //	isMeasureDis = true;
 //	PID_TypeDef pidControlR;
@@ -974,10 +995,11 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
 	// cur 2 wheel: 0.15 0.75 0.02 - not work
 
-	PID2(&pidControlR, &errorR, &offsetR, 0, 1, 11.5, 0.005, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	//
+	PID2(&pidControlR, &errorR, &offsetR, 0, Kp, Ki, Kd, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControlR, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControlR, 10);
-	PID_SetOutputLimits(&pidControlR, -600, 600); //600
+	PID_SetOutputLimits(&pidControlR, (int)2400 - initPwmA, (int) 3600 - initPwmA); //600
 
 //////////////////////////////////////////////////////////////////
 
@@ -994,6 +1016,9 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 	period = tick;
 	count = 0;
 
+	bool modLeft, modRight;
+	modLeft = true;
+	modRight = true;
 	do {
 			HAL_Delay(20);
 
@@ -1016,31 +1041,39 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 			 errorR = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
 			 error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
 			 tick = HAL_GetTick();
-
-			 diffA = errorR;
-			 PID_Compute(&pidControlR);
-			 pwmValA = initPwm + offsetR;
-			 // simple logic
-//			 pwmValA = pwmValA - errorR/3;
-//			 if (pwmValA < minPwm){
-//				 pwmValA = minPwm;
-//			 } else if (pwmValA > maxPwm){
-//				 pwmValA = maxPwm;
-//			 }
-			 cnt1A = pwmValA;
-
-			 diffB = error;
 			 PID_Compute(&pidControl);
-			 pwmValB = initPwm + offset;
-			 // simple logic
-//			 pwmValB = pwmValB - error/3;
-//			 if (pwmValB < minPwm){
-//				 pwmValB = minPwm;
-//			 } else if (pwmValB > maxPwm){
-//				 pwmValB = maxPwm;
-//			 }
+			 if (modRight){
+				 diffA = errorR;
+				 PID_Compute(&pidControlR);
+				 pwmValA = initPwmA + offsetR;
+				 // simple logic
+	//			 pwmValA = pwmValA - errorR/2.5;
+	//			 if (pwmValA < minPwm){
+	//				 pwmValA = minPwm;
+	//			 } else if (pwmValA > maxPwm){
+	//				 pwmValA = maxPwm;
+	//			 }
 
-			 cnt1B = pwmValB;
+				 // use 1 pid to control diff
+//				 pwmValA = initPwm + offset;
+				 cnt1A = pwmValA;
+			 }
+
+			 if (modLeft){
+				 diffB = error;
+				 PID_Compute(&pidControl);
+				 pwmValB = initPwmB + offset;
+				 // simple logic
+	//			 pwmValB = pwmValB - error/2.5;
+	//			 if (pwmValB < minPwm){
+	//				 pwmValB = minPwm;
+	//			 } else if (pwmValB > maxPwm){
+	//				 pwmValB = maxPwm;
+	//			 }
+//				 diffB = error;
+//				 pwmValB = initPwm + offset;
+				 cnt1B = pwmValB;
+			 }
 
 			 // find oscillation period
 			 if (count ==0){
@@ -1064,18 +1097,36 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
 //			 pwmValB = initPwm + offset;
 //			 pwmValA = initPwm - offset;
 
-			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
-			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+			 if (modRight ){
+				 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+			 }
+			 if (modLeft){
+				 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+			 }
+//			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+//			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
 
 			 rightcount = __HAL_TIM_GET_COUNTER(&htim2);
 			 leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+
+			 countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), 0,  leftcount);
+			 countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), 0, rightcount);
+
+				// check single wheel
+//			 if (countInDistanceR >= targetcount){
+//				 modRight = false;
+//				 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,0);
+//			 }
+//			 if (countInDistanceL >= targetcount){
+//				 modLeft = false;
+//				 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,0);
+//			 }
 			 currentcount = (
-					 findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), 0,  leftcount)
-					 + findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), 0, rightcount)
+					 countInDistanceL + countInDistanceR
 			 )/2;
 //
-//			 cnt1A = pwmValA;
-//			 cnt1B = pwmValB;
+			 cnt1A = countInDistanceR;
+			 cnt1B = countInDistanceL;
 		} while ( currentcount < targetcount);
 	stop_rear_wheels();
 	isMeasureDis = false;
@@ -1244,6 +1295,7 @@ void turn_deg( int deg, bool isRight, bool isForward){
 		HAL_Delay(5);
 		//diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
 		measuredDis = measure(cnt1_A, cnt1_B);
+		testVal = measuredDis;
 //		if (diffVelo >= 0.2 || diffVelo <= -0.2){
 //			usePwmB += (int)  ceil(diffVelo/2);
 //			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
@@ -1468,6 +1520,9 @@ void motors(void *argument)
 //				move_straight_PID(true, 100);
 //				isMeasureDis = true;
 				move_straight_PID_2_Wheels(true, 200);
+//				three_points_turn_90deg(false);
+//				HAL_Delay(500);
+//				three_points_turn_90deg(false);
 //				HAL_Delay(1000);
 //				move_straight(true, 10);
 //				move_straight_three_point(true,5);
