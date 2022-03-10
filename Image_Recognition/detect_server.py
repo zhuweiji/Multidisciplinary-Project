@@ -157,6 +157,7 @@ class DetectServer:
 
         detect_array = []
         predict_array = []
+        image_list = []
         # Process predictions
         for i, det in enumerate(pred):  # per image
             seen += 1
@@ -194,6 +195,7 @@ class DetectServer:
                     predict_array.append(prob)
 
             im0 = annotator.result()
+            image_list.append(im0)
             if view_img:
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(0)
@@ -226,18 +228,22 @@ class DetectServer:
 
         # send this array to RPI detect_array
         result_dict = {}
+        image_dict = {}
         count = 0
         for i in predict_array:
             result_dict[i] = detect_array[count]
+            image_dict[i] = image_list[count]
             count = count + 1
         order_of_list = sorted(result_dict)[::-1]
         
         detect_array = []
+        sorted_images = []
         for i in range(len(order_of_list)):
             id = img_id[result_dict[order_of_list[i]]]
             detect_array.append(id)
+            sorted_images.append(image_dict[order_of_list[i]])
                                 
-        return detect_array
+        return detect_array, sorted_images
 
 # This just calls the main function
 if __name__ == "__main__":
