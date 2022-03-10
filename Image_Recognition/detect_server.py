@@ -211,7 +211,7 @@ class DetectServer:
                 flag = 0
                 for i in files:
                     head_tail_2 = os.path.split(i)
-                    tail_2 = head_tail_2[1]
+                    tail2 = head_tail_2[1]
                     id_file = float(tail2[0:2])
                     if id_detected == id_file:
                         prob_old = float(tail2[3:7])

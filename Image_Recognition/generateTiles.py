@@ -1,6 +1,7 @@
 import cv2
 import os
 from PIL import Image
+import numpy as np
 
 def collage(width, height, list_of_images):
     rows = 2
@@ -20,17 +21,20 @@ def collage(width, height, list_of_images):
     y = 0
     for col in range(cols):
         for row in range(rows):
-            new_im.paste(ims[i], (x, y))
-            i += 1
-            y += height
+            try:
+                new_im.paste(ims[i], (x, y))
+                i += 1
+                y += height
+            except:
+                pass
         x += width
         y = 0
 
-    
     new_im.save("collage.jpg")
-    cv2.imshow('collage',new_im)
+    cv2.imshow('collage',np.array(new_im))
+    cv2.waitKey(0)
 
-folder = "C:/Users/micha/OneDrive/Desktop/PRED/content/PRED/collage_actual"
+folder = "./collage_actual"
 file_names = []
 
 for filename in os.listdir(folder):
