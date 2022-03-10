@@ -76,6 +76,7 @@ class Application:
  
         self.pos = (1, 1)
         self.facing = (0, 1)
+        self.obstacle_num = 1
    
     def update_location(self, move):
 
@@ -103,7 +104,14 @@ class Application:
                 self.pos = (x- d_x, y- d_y)
 
     def image_server_callback(self, msg):
-        print
+        print(msg)
+        msg = msg.decode()
+        if msg == "None":
+            pass
+        else:
+            print(f"TARGET,<{self.obstacle_num}>,<{msg}>")
+            self.bluetooth_server.send(f"TARGET,<{self.obstacle_num}>,<{msg}>")
+            self.obstacle_num += 1
 
     def bluetooth_server_callback(self, msg):
 
@@ -178,12 +186,17 @@ class Application:
                 self.image_server.capture_and_send()
 
             self.update_location(move)
-            self.bluetooth_server.send(f"ROBOT,<{self.pos[0]}>,<{self.pos[1]}>,<{facing_to_dir[self.facing]}>".encode())
+            print(f"ROBOT,<{int(self.pos[0])}>,<{int(self.pos[1])}>,<{facing_to_dir[self.facing]}>".encode())
+            self.bluetooth_server.send(f"ROBOT,<{int(self.pos[0])}>,<{int(self.pos[1])}>,<{facing_to_dir[self.facing]}>".encode())
 
     def start_fastest(self):
         pass
 
     def start_discover(self):
+        self.pos = (1, 1)
+        self.facing = (0, 1)
+        self.obstacle_num = 1
+
         data = self.obstacle_storage.extract_required_format()
         result = pathfind(*data)
 

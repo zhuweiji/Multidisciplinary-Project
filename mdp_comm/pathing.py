@@ -72,11 +72,22 @@ class AStar:
             for neighbour in self.get_neighbours(obstacle, cell=True):
                 self.semi_obstacles.add(neighbour)
 
+    def _back_if_possible(self, prev_dir):
+        x, y = self.pos
+        d_x, d_y = prev_dir
+        new_loc = (x- d_x, y-d_y)
+
+        if self.check_valid_loc(new_loc):
+            self.pos = new_loc
+            return [(x,y)]
+
+        return []
+
     def a_star(self, goal, prev_dir):
+        path = self._back_if_possible(prev_dir)
         f = self.manhattan_distance(self.pos, goal)
         g = 0
         h = f + g
-        path = []
         self.queue = [self.create_queue_item(h, f, g, self.pos, path)]
         self.visited = {self.pos}
 
