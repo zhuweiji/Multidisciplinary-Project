@@ -61,7 +61,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t MotorTaskHandle;
 const osThreadAttr_t MotorTask_attributes = {
   .name = "MotorTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for EncoderTask */
@@ -734,25 +734,46 @@ void move_straight(bool isForward, float distance)
 	float diffVelo = 0; // veloB-veloA;
 	int cnt1_A, cnt1_B, cnt1_velo_A, cnt1_velo_B;
 	int oldTick;
+//	htim1.Instance->CCR4 = 66;
+	HAL_Delay(200);
 	htim1.Instance->CCR4 = 74; // see how
+	HAL_Delay(200);
 	uint32_t usePwmA, usePwmB;
-	if (distance > 50){
-//		usePwmA = motorAPwm;
-//		usePwmB = motorBPwm;
-		usePwmA = motorAPwmLow;
-		usePwmB = motorBPwmLow;
+//	if (distance > 50){
+////		usePwmA = motorAPwm;
+////		usePwmB = motorBPwm;
+//		usePwmA = motorAPwmLow;
+//		usePwmB = motorBPwmLow;
+//	} else {
+//		usePwmA = motorAPwmLow;
+//		usePwmB = motorBPwmLow;
+//	}
+
+//	usePwmA = 3000;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
+//	usePwmB = 3565;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
+//
+//	if (!isForward)
+//	{
+//		usePwmA = 3000;
+//		usePwmB = 4150;
+//	}
+
+	if (!inLab) {
+		usePwmA = 2000;
+		usePwmB = 2650;
+
+		if (!isForward) {
+			usePwmA = 2100;
+			usePwmB = 2600; //2650
+		}
 	} else {
-		usePwmA = motorAPwmLow;
-		usePwmB = motorBPwmLow;
-	}
+		usePwmA = 1000;
+		usePwmB = 1000; //1250
 
-	usePwmA = 3000;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
-	usePwmB = 3565;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
-
-	if (!isForward)
-	{
-		usePwmA = 3000;
-		usePwmB = 4150;
+		if (!isForward) {
+			usePwmA = 1000;
+			usePwmB = 1325; //1275;
+		}
 	}
 
 //	LED_SHOW = 1;
@@ -816,6 +837,157 @@ void move_straight(bool isForward, float distance)
 	stop_rear_wheels();
 }
 
+float measureDiffCount (int cnt1, bool isRight, int oldTick){
+ float veloA, veloB;
+ int cnt2, diff;
+ bool isDown;
+ if (isRight){
+  isDown = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
+  cnt2 = __HAL_TIM_GET_COUNTER(&htim2);
+ } else {
+  isDown = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3);
+  cnt2 = __HAL_TIM_GET_COUNTER(&htim3);
+ }
+ diff = findDiffTime(isDown, cnt1, cnt2);
+ int tick = HAL_GetTick() - oldTick;
+ return (float)diff/(float)tick*1000; // unit it count/s
+}
+
+void move_straight_PID_2_Wheels(bool isForward, float distance){
+ set_wheel_direction(isForward);
+// htim1.Instance->CCR4 = 80;
+ HAL_Delay(100); // delay to the encoder work properly when change direction
+ htim1.Instance->CCR4 = servoMid;
+
+ double offset = 0;
+ double error = 0;
+ double offsetR = 0;
+ double errorR = 0;
+ double initError;
+ double desiredCountPerSecond = 4000;
+ // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+ uint16_t initPwm = 3000;
+ uint16_t initPwmA = 3000;
+ uint16_t initPwmB = 3000;
+ if (! isForward){
+  initPwmA = 3000;
+  initPwmB = 3000;
+ }
+ uint16_t minPwm = 2400;
+ uint16_t maxPwm = 3600;
+
+ uint16_t pwmValA = initPwmA;
+ uint16_t pwmValB = initPwmB;
+ uint32_t tick, period, count;
+
+ long leftcount = 0;
+ long rightcount = 0;
+ long initLeftCount = 0;
+ long initRightCount = 0;
+ long countInDistanceL = 0;
+ long countInDistanceR = 0;
+ float currentcount = 0;
+
+ float countsPerRev = 1320; //cntA value per wheel revolution (1320)
+ float wheelDiam = 6.05; // init 6.43 - copy
+ float wheelCirc = M_PI * wheelDiam;
+
+ float numRev = distance/wheelCirc;
+ float targetcount = numRev * countsPerRev;
+
+///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+ double Kp, Ki, Kd, KpL, KiL, KdL;
+ if (isForward){
+  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+  Ki = 1;
+  Kd = 0.09; // 0.025 look ok but damp quite slow
+  KpL = 0.75;
+  KiL = 5;
+  KdL = 0.09;
+ } else {
+  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+  Ki = 1;
+  Kd = 0.09; // 0.025 look ok but damp quite slow
+  KpL = 0.75;
+  KiL = 5;
+  KdL = 0.09;
+ }
+ PID_TypeDef pidControl, pidControlR;
+
+
+ /// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
+ // cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405 // 9:32pm 0, 30, 0.001
+
+ // straight forward work: 0.05, 10, 0.01 - but due to luck
+ PID(&pidControl, &error, &offset, 0, KpL, KiL, KdL, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+ PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+ PID_SetSampleTime(&pidControl, 10);
+ PID_SetOutputLimits(&pidControl, (int)2400 - initPwmB, (int) 3600 - initPwmB); //600
+
+ PID2(&pidControlR, &errorR, &offsetR, 0, Kp, Ki, Kd, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+ PID_SetMode(&pidControlR, _PID_MODE_AUTOMATIC);
+ PID_SetSampleTime(&pidControlR, 10);
+ PID_SetOutputLimits(&pidControlR, (int)2400 - initPwmA, (int) 3600 - initPwmA); //600
+
+ rightcount = __HAL_TIM_GET_COUNTER(&htim2);
+ leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+ initLeftCount = leftcount;
+ initRightCount = rightcount;
+ isMeasureDis = true;
+ currentcount = (leftcount+rightcount)/2;
+
+ tick = HAL_GetTick();
+
+ period = tick;
+ count = 0;
+
+ bool modLeft, modRight;
+ modLeft = true;
+ modRight = true;
+ do {
+   HAL_Delay(20);
+
+    errorR = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
+    error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
+    tick = HAL_GetTick();
+    PID_Compute(&pidControl);
+    if (modRight){
+     diffA = errorR;
+     PID_Compute(&pidControlR);
+     pwmValA = initPwmA + offsetR;
+     cnt1A = pwmValA;
+    }
+
+    if (modLeft){
+     diffB = error;
+     PID_Compute(&pidControl);
+     pwmValB = initPwmB + offset;
+     cnt1B = pwmValB;
+    }
+
+    if (modRight ){
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+    }
+    if (modLeft){
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+    }
+
+    rightcount = __HAL_TIM_GET_COUNTER(&htim2);
+    leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+
+    countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  leftcount);
+    countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount, rightcount);
+
+    currentcount = (
+      countInDistanceL + countInDistanceR
+    )/2;
+    testVal = currentcount;
+
+  } while ( currentcount < targetcount);
+ stop_rear_wheels();
+ isMeasureDis = false;
+}
+
 void move_straight_PID(bool isForward, float distance){
 	set_wheel_direction(isForward);
 	HAL_Delay(200); // delay to the encoder work properly when change direction
@@ -832,7 +1004,7 @@ void move_straight_PID(bool isForward, float distance){
 	long currentcount = 0;
 
 	float countsPerRev = 1320; //cntA value per wheel revolution (1320)
-	float wheelDiam = 6.43;
+	float wheelDiam = 6.1;
 	float wheelCirc = M_PI * wheelDiam;
 
 	float numRev = distance/wheelCirc;
@@ -842,7 +1014,7 @@ void move_straight_PID(bool isForward, float distance){
 	PID_TypeDef pidControlDiff;
 
 	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
-	PID(&pidControlDiff, &error, &offset, 0, 0, 0, 0, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID(&pidControlDiff, &error, &offset, 0, 7, 10, 0.05, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
 	PID_SetMode(&pidControlDiff, _PID_MODE_AUTOMATIC);
 	PID_SetSampleTime(&pidControlDiff, 10);
 	PID_SetOutputLimits(&pidControlDiff, -400, 400); //600
@@ -913,20 +1085,25 @@ void move_straight_three_point(bool isForward, float distance)
 	int oldTick;
 	htim1.Instance->CCR4 = 74; // see how
 	uint32_t usePwmA, usePwmB;
-	if (distance > 50){
-//		usePwmA = motorAPwm;
-//		usePwmB = motorBPwm;
-		usePwmA = motorAPwmLow;
-		usePwmB = motorBPwmLow;
+//	if (distance > 50){
+////		usePwmA = motorAPwm;
+////		usePwmB = motorBPwm;
+//		usePwmA = motorAPwmLow;
+//		usePwmB = motorBPwmLow;
+//	} else {
+//		usePwmA = motorAPwmLow;
+//		usePwmB = motorBPwmLow;
+//	}
+
+	if (inLab) {
+		usePwmA = 1150;
+		usePwmB = 1000;
 	} else {
-		usePwmA = motorAPwmLow;
-		usePwmB = motorBPwmLow;
+		usePwmA = 1150;
+		usePwmB = 1000;
 	}
 
-	usePwmA = 3000;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
-	usePwmB = 3550;  // forward outside lab, If we need to change this, we should keep these values for turning. If we change this again, turning is affected.
-
-	HAL_Delay(200); // delay to the encoder work properly when change direction
+	HAL_Delay(500); // used to be 200; delay to the encoder work properly when change direction
 	htim1.Instance->CCR4 = servoMid;
 	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, usePwmA);
 	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
@@ -1043,10 +1220,11 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	} else {
 		servo = servoLeft;
 	}
+	HAL_Delay(200);
 	htim1.Instance->CCR4 = servo;
 	HAL_Delay(200);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwmLow);
-	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, usePwmB);
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, motorAPwmLow); //1000
+	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, usePwmB); //1020
 
 	float distance = calTurnDis(deg * degMul, isRight);
 	cnt1_A = __HAL_TIM_GET_COUNTER(&htim2);
@@ -1101,15 +1279,15 @@ void three_points_turn_90deg(bool isRight){
 	if (!isRight)
 	{
 		if (inLab){
-			deg = 30 * 1.06; //lab floor
+			deg = 30 * 1.20; //lab floor 1.16
 		} else {
-			deg = 30 * 1.198;
+			deg = 30 * 1.075; //1.198
 		}
 	} else {
 		if (inLab){
-			deg = 30 * 1.06; //lab floor
+			deg = 30 * 0.96; //lab floor
 		} else {
-			deg = 30 * 1.235;
+			deg = 30 * 0.9; //1.235
 		}
 	}
 
@@ -1192,12 +1370,11 @@ void motors(void *argument)
 		DegConstRight = 0.97;
 	} else {
 //		motorBPwmLow = 1030;
-		motorBPwmLow = 2100; //2300
-		motorAPwmLow = 2100;
+		motorBPwmLow = 1000; //2300
+		motorAPwmLow = 1000;
 		DegConstLeft = 0.97;
 		DegConstRight = 1;
 	}
-
 
 	char direction = 'p'; // 'l' for left, 'r' for right, 'f' for forward
 	uint8_t completeChar = 'C';
@@ -1228,12 +1405,12 @@ void motors(void *argument)
 //						} else {
 //							move_straight(true, straightDistance);
 //						}
-						move_straight(true, straightDistance);
+						move_straight_PID_2_Wheels(true, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'B':
 						straightDistance = arrTofloat(aRxBuffer,1,indexer-1);
-						move_straight(false, straightDistance);
+						move_straight_PID_2_Wheels(false, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'L':
@@ -1283,16 +1460,17 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-				HAL_Delay(500);
-				move_straight(false, 100);
-				HAL_Delay(1000);
-				move_straight(false, 100);
+//				move_straight(true, 200);
+
 //				move_straight_three_point(true,5);
 //				move_straight_three_point(false,5);
-//				three_points_turn_90deg(false);
+				three_points_turn_90deg(true);
 //				turn_deg(90 * DegConstRight, true, true);
 //				three_points_turn_90deg(true);
-//				move_straight(true, 100);
+
+//				move_straight_PID_2_Wheels(false, 50);
+//				move_straight(true, 200);
+
 				haveTest = true;
 			}
 	  	osDelay(1000);
