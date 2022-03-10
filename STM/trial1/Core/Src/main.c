@@ -759,12 +759,12 @@ void move_straight(bool isForward, float distance)
 //	}
 
 	if (!inLab) {
-		usePwmA = 2000;
-		usePwmB = 2650;
+		usePwmA = 2500;
+		usePwmB = 2100;
 
 		if (!isForward) {
 			usePwmA = 2100;
-			usePwmB = 2600; //2650
+			usePwmB = 2480; //2650
 		}
 	} else {
 		usePwmA = 1000;
@@ -911,6 +911,23 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
   KpL = 0.75;
   KiL = 5;
   KdL = 0.09;
+ }
+ if (! inLab){
+	 if (isForward){
+	   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	   Ki = 1;
+	   Kd = 0.025; // 0.025 look ok but damp quite slow
+	   KpL = 0.75;
+	   KiL = 9;
+	   KdL = 0.025;
+	  } else {
+	   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	   Ki = 1;
+	   Kd = 0.025; // 0.025 look ok but damp quite slow
+	   KpL = 0.75;
+	   KiL = 45;
+	   KdL = 0.05;
+	  }
  }
  PID_TypeDef pidControl, pidControlR;
 
@@ -1281,7 +1298,7 @@ void three_points_turn_90deg(bool isRight){
 		if (inLab){
 			deg = 30 * 1.20; //lab floor 1.16
 		} else {
-			deg = 30 * 1.075; //1.198
+			deg = 30 * 1.098; //1.198, 1.075
 		}
 	} else {
 		if (inLab){
@@ -1405,12 +1422,12 @@ void motors(void *argument)
 //						} else {
 //							move_straight(true, straightDistance);
 //						}
-						move_straight_PID_2_Wheels(true, straightDistance);
+						move_straight(true, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'B':
 						straightDistance = arrTofloat(aRxBuffer,1,indexer-1);
-						move_straight_PID_2_Wheels(false, straightDistance);
+						move_straight(false, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'L':
@@ -1464,12 +1481,12 @@ void motors(void *argument)
 
 //				move_straight_three_point(true,5);
 //				move_straight_three_point(false,5);
-				three_points_turn_90deg(true);
-//				turn_deg(90 * DegConstRight, true, true);
 //				three_points_turn_90deg(true);
+//				turn_deg(90 * DegConstRight, true, true);
+				three_points_turn_90deg(false);
 
 //				move_straight_PID_2_Wheels(false, 50);
-//				move_straight(true, 200);
+//				move_straight(false, 100);
 
 				haveTest = true;
 			}
@@ -1538,10 +1555,10 @@ void show(void *argument)
 			sprintf(hello, "DiffB: %d", diffB);
 			OLED_ShowString(10, 30, hello);
 //
-			sprintf(hello, "Diffspeed: %d", diffSpeed);
+			sprintf(hello, "Diffspeed: %d", cnt1A);
 			OLED_ShowString(10, 40, hello);
 //
-			sprintf(hello, "Measuring: %d", isMeasureDis);
+			sprintf(hello, "Measuring: %d", cnt1B);
 			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);
