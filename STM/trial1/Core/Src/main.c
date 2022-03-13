@@ -898,7 +898,7 @@ float measureDiffCount (int cnt1, bool isRight, int oldTick){
  return (float)diff/(float)tick*1000; // unit it count/s
 }
 
-void move_straight_PID_2_Wheels(bool isForward, float distance){
+void move_straight_PID(bool isForward, float distance){
  set_wheel_direction(isForward);
 // htim1.Instance->CCR4 = 80;
  HAL_Delay(100); // delay to the encoder work properly when change direction
@@ -946,18 +946,9 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
   dirCoef = -1;
  }
  if (! inLab){
-//	 if (isForward){
-//	   Kp = 1; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-//	   Ki = 0;
-//	   Kd = 0; // 0.025 look ok but damp quite slow
-//	  } else {
-//	   Kp = 1; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-//	   Ki = 0;
-//	   Kd = 0; // 0.025 look ok but damp quite slow
-//	  }
-	 Kp = 1.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	 Kp = 1.5;
 	 Ki = 0;
-	 Kd = 0; // 0.025 look ok but damp quite slow
+	 Kd = 0;
  }
  PID_TypeDef pidControl, pidControlR;
 
@@ -1424,9 +1415,9 @@ void motors(void *argument)
 //				three_points_turn_90deg(false);
 
 //				for (int i=0; i < 4 ; i++){
-//					move_straight_PID_2_Wheels(false, 50);
+//					move_straight_PID(false, 50);
 //				}
-				move_straight_PID_2_Wheels(true, 200);
+				move_straight_PID(true, 200);
 //				move_straight(false, 100);
 
 				haveTest = true;
