@@ -26,6 +26,7 @@
 #include "math.h"
 #include "stdbool.h"
 #include "pid.h"
+#include "ICM20948.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +44,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -80,6 +83,11 @@ const osThreadAttr_t ShowTask_attributes = {
 };
 /* USER CODE BEGIN PV */
 
+// gyro value for PID
+float targetAngle = 0;
+float curAngle = 0;
+uint8_t readGyroZData[2];
+int16_t gyroZ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,6 +98,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_I2C1_Init(void);
 void StartDefaultTask(void *argument);
 void motors(void *argument);
 void encoder_task(void *argument);
@@ -139,8 +148,10 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM1_Init();
   MX_USART3_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
+  ICM20948_init(&hi2c1,0,GYRO_FULL_SCALE_2000DPS);
 
   HAL_UART_Receive_IT(&huart3,(uint8_t *) &data_rx, 1);
 //  HAL_UART_Receive_DMA (&huart3, UART1_rxBuffer, 12);
@@ -238,6 +249,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -571,7 +616,7 @@ bool receivingUART = false;
 bool commandReady = false;
 uint8_t count = 0;
 uint8_t txCount = 0;
-uint32_t testVal = 0;
+int testVal = 0;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
@@ -859,26 +904,18 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
  HAL_Delay(100); // delay to the encoder work properly when change direction
  htim1.Instance->CCR4 = servoMid;
 
- double offset = 0;
- double error = 0;
- double offsetR = 0;
- double errorR = 0;
- double initError;
- double desiredCountPerSecond = 4000;
+ double offset = 0; // output Pid
+ double input = 0; // input Pid
  // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
- uint16_t initPwm = 3000;
  uint16_t initPwmA = 3000;
  uint16_t initPwmB = 3000;
  if (! isForward){
   initPwmA = 3000;
   initPwmB = 3000;
  }
- uint16_t minPwm = 2400;
- uint16_t maxPwm = 3600;
 
  uint16_t pwmValA = initPwmA;
  uint16_t pwmValB = initPwmB;
- uint32_t tick, period, count;
 
  long leftcount = 0;
  long rightcount = 0;
@@ -896,38 +933,31 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
  float targetcount = numRev * countsPerRev;
 
 ///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+ int dirCoef = 1;
  double Kp, Ki, Kd, KpL, KiL, KdL;
  if (isForward){
   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
   Ki = 1;
   Kd = 0.09; // 0.025 look ok but damp quite slow
-  KpL = 0.75;
-  KiL = 5;
-  KdL = 0.09;
  } else {
   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
   Ki = 1;
   Kd = 0.09; // 0.025 look ok but damp quite slow
-  KpL = 0.75;
-  KiL = 5;
-  KdL = 0.09;
+  dirCoef = -1;
  }
  if (! inLab){
-	 if (isForward){
-	   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-	   Ki = 1;
-	   Kd = 0.025; // 0.025 look ok but damp quite slow
-	   KpL = 0.75;
-	   KiL = 9;
-	   KdL = 0.025;
-	  } else {
-	   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-	   Ki = 1;
-	   Kd = 0.025; // 0.025 look ok but damp quite slow
-	   KpL = 0.75;
-	   KiL = 45;
-	   KdL = 0.05;
-	  }
+//	 if (isForward){
+//	   Kp = 1; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+//	   Ki = 0;
+//	   Kd = 0; // 0.025 look ok but damp quite slow
+//	  } else {
+//	   Kp = 1; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+//	   Ki = 0;
+//	   Kd = 0; // 0.025 look ok but damp quite slow
+//	  }
+	 Kp = 1.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	 Ki = 0;
+	 Kd = 0; // 0.025 look ok but damp quite slow
  }
  PID_TypeDef pidControl, pidControlR;
 
@@ -936,49 +966,41 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
  // cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405 // 9:32pm 0, 30, 0.001
 
  // straight forward work: 0.05, 10, 0.01 - but due to luck
- PID(&pidControl, &error, &offset, 0, KpL, KiL, KdL, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+ PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
  PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
  PID_SetSampleTime(&pidControl, 10);
- PID_SetOutputLimits(&pidControl, (int)2400 - initPwmB, (int) 3600 - initPwmB); //600
+ PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
 
- PID2(&pidControlR, &errorR, &offsetR, 0, Kp, Ki, Kd, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
- PID_SetMode(&pidControlR, _PID_MODE_AUTOMATIC);
- PID_SetSampleTime(&pidControlR, 10);
- PID_SetOutputLimits(&pidControlR, (int)2400 - initPwmA, (int) 3600 - initPwmA); //600
 
  rightcount = __HAL_TIM_GET_COUNTER(&htim2);
  leftcount = __HAL_TIM_GET_COUNTER(&htim3);
  initLeftCount = leftcount;
  initRightCount = rightcount;
  isMeasureDis = true;
- currentcount = (leftcount+rightcount)/2;
-
- tick = HAL_GetTick();
-
- period = tick;
  count = 0;
 
  bool modLeft, modRight;
  modLeft = true;
  modRight = true;
- do {
-   HAL_Delay(20);
 
-    errorR = measureDiffCount(rightcount, true, tick) - desiredCountPerSecond;
-    error = measureDiffCount(leftcount, false, tick) - desiredCountPerSecond;
-    tick = HAL_GetTick();
+ // reset angle
+ gyroZ = 0;
+ curAngle = 0;
+ do {
+    HAL_Delay(10);
+   	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+   	// since self test always sê gyroZ from -20 to 0 in the stable state
+   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+   	input = -curAngle;
+
     PID_Compute(&pidControl);
     if (modRight){
-     diffA = errorR;
-     PID_Compute(&pidControlR);
-     pwmValA = initPwmA + offsetR;
+     pwmValA = initPwmA - offset * dirCoef;
      cnt1A = pwmValA;
     }
 
     if (modLeft){
-     diffB = error;
-     PID_Compute(&pidControl);
-     pwmValB = initPwmB + offset;
+     pwmValB = initPwmB + offset * dirCoef;
      cnt1B = pwmValB;
     }
 
@@ -998,94 +1020,10 @@ void move_straight_PID_2_Wheels(bool isForward, float distance){
     currentcount = (
       countInDistanceL + countInDistanceR
     )/2;
-    testVal = currentcount;
 
   } while ( currentcount < targetcount);
  stop_rear_wheels();
  isMeasureDis = false;
-}
-
-void move_straight_PID(bool isForward, float distance){
-	set_wheel_direction(isForward);
-	HAL_Delay(200); // delay to the encoder work properly when change direction
-	htim1.Instance->CCR4 = servoMid;
-
-	double offset = 0;
-	double error = 0;
-	// from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
-	uint16_t pwmValA = 3000;
-	uint16_t pwmValB = 3000;
-
-	long leftcount = 0;
-	long rightcount = 0;
-	long currentcount = 0;
-
-	float countsPerRev = 1320; //cntA value per wheel revolution (1320)
-	float wheelDiam = 6.1;
-	float wheelCirc = M_PI * wheelDiam;
-
-	float numRev = distance/wheelCirc;
-	float targetcount = numRev * countsPerRev;
-
-///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
-	PID_TypeDef pidControlDiff;
-
-	/// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
-	PID(&pidControlDiff, &error, &offset, 0, 7, 10, 0.05, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
-	PID_SetMode(&pidControlDiff, _PID_MODE_AUTOMATIC);
-	PID_SetSampleTime(&pidControlDiff, 10);
-	PID_SetOutputLimits(&pidControlDiff, -400, 400); //600
-//////////////////////////////////////////////////////////////////
-
-	//reset counter values
-	__HAL_TIM_SET_COUNTER(&htim2,0);
-	__HAL_TIM_SET_COUNTER(&htim3,0);
-
-	 if(isForward){ //if forward use leftcount
-		 currentcount = leftcount;
-	 }
-	 else { //if backward use rightcount
-		 currentcount = rightcount;
-	 }
-
-	do {
-			HAL_Delay(30);
-			leftcount = __HAL_TIM_GET_COUNTER(&htim2);
-			rightcount = __HAL_TIM_GET_COUNTER(&htim3);
-
-//////////////////////////PID PART//////////////////////////////////////////////////
-			/** I think the rightcount = 65535 - right count may not necessary **/
-			if(isForward){
-				 if(rightcount != 0){
-					 rightcount = 65535 - rightcount;
-				 }
-				 error = leftcount - rightcount;
-			}
-			else{
-				 if(leftcount != 0){
-					 leftcount = 65535 - leftcount;
-				 }
-				 error = leftcount - rightcount;
-			}
-
-			 //pid computation
-			 PID_Compute(&pidControlDiff);
-//////////////////////////////////////////////////////////////////////////////
-
-			 //update pwmValue
-			 pwmValA = pwmValA + offset;
-			 pwmValB = pwmValB - offset;
-			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
-			 __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
-
-			 if(isForward){ //if forward use leftcount
-				 currentcount = leftcount;
-			 }
-			 else{ //if backward use rightcount
-				 currentcount = rightcount;
-			 }
-		} while ( currentcount < targetcount);
-	stop_rear_wheels();
 }
 
 /* distance should be in cm ALT FUNCTION FOR THREE POINT*/
@@ -1483,9 +1421,12 @@ void motors(void *argument)
 //				move_straight_three_point(false,5);
 //				three_points_turn_90deg(true);
 //				turn_deg(90 * DegConstRight, true, true);
-				three_points_turn_90deg(false);
+//				three_points_turn_90deg(false);
 
-//				move_straight_PID_2_Wheels(false, 50);
+//				for (int i=0; i < 4 ; i++){
+//					move_straight_PID_2_Wheels(false, 50);
+//				}
+				move_straight_PID_2_Wheels(true, 200);
 //				move_straight(false, 100);
 
 				haveTest = true;
@@ -1539,7 +1480,7 @@ void show(void *argument)
 //			sprintf(hello, "Send back: %d", haveSendSignalBack);
 //			OLED_ShowString(10, 50, hello);
 
-			sprintf(hello, "dis: %d", testVal);
+			sprintf(hello, "anglenow: %f", curAngle);
 			OLED_ShowString(10, 10, hello);
 
 			/**debug**/
@@ -1549,16 +1490,16 @@ void show(void *argument)
 
 //				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
 //				OLED_ShowString(10, 10, hello);
-			sprintf(hello, "DiffA: %d", diffA);
+			sprintf(hello, "GyroZ: %d", gyroZ);
 			OLED_ShowString(10, 20, hello);
 
 			sprintf(hello, "DiffB: %d", diffB);
 			OLED_ShowString(10, 30, hello);
 //
-			sprintf(hello, "Diffspeed: %d", cnt1A);
+			sprintf(hello, "PwmA: %d", cnt1A);
 			OLED_ShowString(10, 40, hello);
 //
-			sprintf(hello, "Measuring: %d", cnt1B);
+			sprintf(hello, "PwmB: %d", cnt1B);
 			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);

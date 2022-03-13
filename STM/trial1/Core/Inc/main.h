@@ -47,6 +47,11 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+#define __Gyro_Read_Z(_I2C, readGyroData, gyroZ) ({ \
+	HAL_I2C_Mem_Read(_I2C,ICM20948__I2C_SLAVE_ADDRESS_1 << 1, ICM20948__USER_BANK_0__GYRO_ZOUT_H__REGISTER, I2C_MEMADD_SIZE_8BIT, readGyroData, 2, 0xFFFF); \
+	gyroZ = readGyroData[0] << 8 | readGyroData[1]; \
+})
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
