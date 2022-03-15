@@ -113,6 +113,7 @@ void show(void *argument);
 uint8_t aRxBuffer[4];
 uint8_t indexer = 0; // to store array index and determine number of incoming chars
 uint8_t data_rx = 0; // to receive incoming uart char
+float targetAngle;
 /* USER CODE END 0 */
 
 /**
@@ -900,9 +901,10 @@ float measureDiffCount (int cnt1, bool isRight, int oldTick){
 
 void move_straight_PID(bool isForward, float distance){
  set_wheel_direction(isForward);
-// htim1.Instance->CCR4 = 80;
- HAL_Delay(100); // delay to the encoder work properly when change direction
+ htim1.Instance->CCR4 = 90;
+ HAL_Delay(500); // delay to the encoder work properly when change direction
  htim1.Instance->CCR4 = servoMid;
+ HAL_Delay(500);
 
  double offset = 0; // output Pid
  double input = 0; // input Pid
@@ -936,9 +938,12 @@ void move_straight_PID(bool isForward, float distance){
  int dirCoef = 1;
  double Kp, Ki, Kd, KpL, KiL, KdL;
  if (isForward){
-  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-  Ki = 1;
-  Kd = 0.09; // 0.025 look ok but damp quite slow
+//  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+//  Ki = 1;
+//  Kd = 0.09; // 0.025 look ok but damp quite slow
+  Kp = 0; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+    Ki = 0;
+    Kd = 0;
  } else {
   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
   Ki = 1;
@@ -946,6 +951,9 @@ void move_straight_PID(bool isForward, float distance){
   dirCoef = -1;
  }
  if (! inLab){
+//	 Kp = 1.5;
+//	 Ki = 0;
+//	 Kd = 0;
 	 Kp = 1.5;
 	 Ki = 0;
 	 Kd = 0;
@@ -957,10 +965,10 @@ void move_straight_PID(bool isForward, float distance){
  // cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405 // 9:32pm 0, 30, 0.001
 
  // straight forward work: 0.05, 10, 0.01 - but due to luck
- PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
- PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
- PID_SetSampleTime(&pidControl, 10);
- PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
+// PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+// PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+// PID_SetSampleTime(&pidControl, 10);
+// PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
 
 
  rightcount = __HAL_TIM_GET_COUNTER(&htim2);
@@ -981,10 +989,20 @@ void move_straight_PID(bool isForward, float distance){
     HAL_Delay(10);
    	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
    	// since self test always sê gyroZ from -20 to 0 in the stable state
-   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//   	curAngle += ((gyroZ >= -35 && gyroZ <= 10) ? 0 : gyroZ); //inside lab
+// negative moves it to the left, positive moves it to the right
+   	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
    	input = -curAngle;
 
     PID_Compute(&pidControl);
+
+    PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+    PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+    PID_SetSampleTime(&pidControl, 10);
+    PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
+
+
     if (modRight){
      pwmValA = initPwmA - offset * dirCoef;
      cnt1A = pwmValA;
@@ -1013,6 +1031,7 @@ void move_straight_PID(bool isForward, float distance){
     )/2;
 
   } while ( currentcount < targetcount);
+//  } while ( currentcount < targetcount);
  stop_rear_wheels();
  isMeasureDis = false;
 }
@@ -1087,13 +1106,13 @@ void move_straight_10(){
 	osDelay(500);
 }
 
-void turn_left()
+void turn_left(float * targetAngle)
 {
 	htim1.Instance->CCR4 = servoMid;
 	osDelay(500);
 	htim1.Instance->CCR4 = servoLeft;
 	uint32_t pwmVal = 0;
-	uint32_t pwmVal_2 = 6000;
+	uint32_t pwmVal_2 = 3000;
 
 	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
@@ -1101,13 +1120,28 @@ void turn_left()
 	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	osDelay(630); // set this to change the angle of turn
+	float angleNow = 0;
+	gyroZ = 0;
+	int last_curTask_tick = HAL_GetTick();
+	do {
+	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+//		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+		   	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+
+		  if (abs(angleNow - *targetAngle) < 0.01) break;
+		  last_curTask_tick = HAL_GetTick();
+	  }
+	} while(1);
+
+//	osDelay(630); // set this to change the angle of turn
 	stop_rear_wheels();
 //  htim1.Instance->CCR4 = servoMid;
 //	osDelay(500);
 }
 
-void turn_right()
+void turn_right(float * targetAngle)
 {
 	htim1.Instance->CCR4 = servoMid;
 	osDelay(500);
@@ -1121,6 +1155,19 @@ void turn_right()
 	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+
+	float angleNow = 0;
+	gyroZ = 0;
+	int last_curTask_tick = HAL_GetTick();
+	do {
+	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+//		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+		  if ((*targetAngle - angleNow) < 0.01) break;
+		  last_curTask_tick = HAL_GetTick();
+	  }
+	} while(1);
 	osDelay(660); // set this to change the angle of turn
 	stop_rear_wheels();
 //	htim1.Instance->CCR4 = servoMid;
@@ -1182,32 +1229,47 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	cnt1_velo_A = cnt1_A;
 	cnt1_velo_B = cnt1_B;
 	oldTick = HAL_GetTick();
-	do {
-		HAL_Delay(5);
-		//diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
-		measuredDis = measure(cnt1_A, cnt1_B);
-//		if (diffVelo >= 0.2 || diffVelo <= -0.2){
-//			usePwmB += (int)  ceil(diffVelo/2);
-//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
-//		}
-//		uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
-//		if (addValue == 0){
-//			addValue += 1;
-//		}
-//		if (diffVelo >= 0.05){
-//			usePwmB -= addValue;
-//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
-//		} else if (diffVelo <= -0.05) {
-//			usePwmB += addValue;
-//			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
-//		}
-//		testVal = addValue;
 
-		// update for speed
-//		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
-//		cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
-//		oldTick = HAL_GetTick();
-		} while (distance > measuredDis);
+	float angleNow = 0; gyroZ = 0;
+	int last_curTask_tick = HAL_GetTick();
+	do {
+	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//		  angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+		  if (abs(angleNow - deg) < 0.01) break;
+		  last_curTask_tick = HAL_GetTick();
+	  }
+	} while(1);
+
+//	__SET_MOTOR_DUTY(&htim8, 0, 0);
+//	__RESET_SERVO_TURN(&htim1);
+//	do {
+//		HAL_Delay(5);
+//		//diffVelo = measureDiffVelo(cnt1_velo_A, cnt1_velo_B, oldTick);
+//		measuredDis = measure(cnt1_A, cnt1_B);
+////		if (diffVelo >= 0.2 || diffVelo <= -0.2){
+////			usePwmB += (int)  ceil(diffVelo/2);
+////			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+////		}
+////		uint32_t addValue = (uint32_t) (fabs(diffVelo/0.2));
+////		if (addValue == 0){
+////			addValue += 1;
+////		}
+////		if (diffVelo >= 0.05){
+////			usePwmB -= addValue;
+////			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+////		} else if (diffVelo <= -0.05) {
+////			usePwmB += addValue;
+////			__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_2, usePwmB);
+////		}
+////		testVal = addValue;
+//
+//		// update for speed
+////		cnt1_velo_A = __HAL_TIM_GET_COUNTER(&htim2);
+////		cnt1_velo_B = __HAL_TIM_GET_COUNTER(&htim3);
+////		oldTick = HAL_GetTick();
+//		} while (distance > measuredDis);
 	stop_rear_wheels();
   htim1.Instance->CCR4 = servoMid;
 }
@@ -1351,12 +1413,12 @@ void motors(void *argument)
 //						} else {
 //							move_straight(true, straightDistance);
 //						}
-						move_straight(true, straightDistance);
+						move_straight_PID(true, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'B':
 						straightDistance = arrTofloat(aRxBuffer,1,indexer-1);
-						move_straight(false, straightDistance);
+						move_straight_PID(false, straightDistance);
 						straightDistance = 0;
 						break;
 					case 'L':
@@ -1411,13 +1473,16 @@ void motors(void *argument)
 //				move_straight_three_point(true,5);
 //				move_straight_three_point(false,5);
 //				three_points_turn_90deg(true);
-//				turn_deg(90 * DegConstRight, true, true);
+//				turn_deg(90, true, true);
+				targetAngle = 90;
+				turn_left(&targetAngle);
 //				three_points_turn_90deg(false);
 
 //				for (int i=0; i < 4 ; i++){
 //					move_straight_PID(false, 50);
 //				}
-				move_straight_PID(true, 200);
+
+//				move_straight_PID(true, 200);
 //				move_straight(false, 100);
 
 				haveTest = true;
@@ -1471,7 +1536,7 @@ void show(void *argument)
 //			sprintf(hello, "Send back: %d", haveSendSignalBack);
 //			OLED_ShowString(10, 50, hello);
 
-			sprintf(hello, "anglenow: %f", curAngle);
+//			sprintf(hello, "anglenow: %f", curAngle);
 			OLED_ShowString(10, 10, hello);
 
 			/**debug**/
