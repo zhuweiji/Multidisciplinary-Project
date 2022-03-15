@@ -44,11 +44,15 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
+
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim8;
 
 UART_HandleTypeDef huart3;
@@ -67,11 +71,11 @@ const osThreadAttr_t MotorTask_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for EncoderTask */
-osThreadId_t EncoderTaskHandle;
-const osThreadAttr_t EncoderTask_attributes = {
-  .name = "EncoderTask",
-  .stack_size = 128 * 4,
+/* Definitions for MoveObs */
+osThreadId_t MoveObsHandle;
+const osThreadAttr_t MoveObs_attributes = {
+  .name = "MoveObs",
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for ShowTask */
@@ -99,9 +103,12 @@ static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_ADC2_Init(void);
+static void MX_TIM4_Init(void);
 void StartDefaultTask(void *argument);
 void motors(void *argument);
-void encoder_task(void *argument);
+void move_obs_task(void *argument);
 void show(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -150,6 +157,9 @@ int main(void)
   MX_TIM1_Init();
   MX_USART3_UART_Init();
   MX_I2C1_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   ICM20948_init(&hi2c1,0,GYRO_FULL_SCALE_2000DPS);
@@ -184,8 +194,8 @@ int main(void)
   /* creation of MotorTask */
   MotorTaskHandle = osThreadNew(motors, NULL, &MotorTask_attributes);
 
-  /* creation of EncoderTask */
-  EncoderTaskHandle = osThreadNew(encoder_task, NULL, &EncoderTask_attributes);
+  /* creation of MoveObs */
+  MoveObsHandle = osThreadNew(move_obs_task, NULL, &MoveObs_attributes);
 
   /* creation of ShowTask */
   ShowTaskHandle = osThreadNew(show, NULL, &ShowTask_attributes);
@@ -250,6 +260,106 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc2.Init.ScanConvMode = DISABLE;
+  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
+
 }
 
 /**
@@ -458,6 +568,54 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 16-1;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_IC_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
   * @brief TIM8 Initialization Function
   * @param None
   * @retval None
@@ -579,8 +737,9 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -588,6 +747,9 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, AIN2_Pin|AIN1_Pin|BIN1_Pin|BIN2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : OLED_SCL_Pin OLED_SDA_Pin OLED_RST_Pin OLED_DC_Pin */
   GPIO_InitStruct.Pin = OLED_SCL_Pin|OLED_SDA_Pin|OLED_RST_Pin|OLED_DC_Pin;
@@ -609,6 +771,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : US_TRIG_Pin */
+  GPIO_InitStruct.Pin = US_TRIG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(US_TRIG_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -649,6 +818,38 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	UNUSED(huart);
   txCount +=1 ;
+}
+
+uint32_t IC_Val1 = 0, IC_Val2 = 0;
+uint8_t Is_First_Captured = 0;
+float obsDist_US = 0;
+uint8_t icCBCount = 0;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	icCBCount += 1;
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)  // if the interrupt source is channel1 (TRI: TIM4_CH2)
+	{
+		if (Is_First_Captured==0) // if the first value is not captured
+		{
+			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
+			Is_First_Captured = 1;  // set the first captured as true
+			// Now change the polarity to falling edge
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+		}
+
+		else if (Is_First_Captured==1)   // if the first is already captured
+		{
+			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  // read second value
+			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
+			obsDist_US = (IC_Val2 > IC_Val1 ? (IC_Val2 - IC_Val1) : (65535 - IC_Val1 + IC_Val2)) * 0.034 / 2;
+			Is_First_Captured = 0; // set it back to false
+
+			// set polarity to rising edge
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+			__HAL_TIM_DISABLE_IT(&htim4, TIM_IT_CC1);
+		}
+	}
 }
 
 // motors function
@@ -1309,6 +1510,159 @@ void three_points_turn_90deg(bool isRight){
 	move_straight_three_point(false, 2);
 }
 // end motors function
+
+////////////////////////ADC IR //////////////////////////////////////
+uint16_t obsTick_IR = 0;
+float obsDist_IR = 0;
+float debugObsDist_IR = 0;
+
+void readIR(int irNum){
+	uint16_t dataPoint = 0; uint32_t IR_data_raw_acc = 0;
+	isMeasureDis = true;
+	if (irNum == 1){
+		__ADC_Read_Dist(&hadc1, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
+		HAL_ADC_Stop(&hadc1);
+	} else if (irNum == 2) {
+		__ADC_Read_Dist(&hadc2, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
+		HAL_ADC_Stop(&hadc2);
+	}
+}
+
+void move_straight_PID_IR(bool isForward, long* distanceCount){
+ set_wheel_direction(isForward);
+ htim1.Instance->CCR4 = 90;
+ HAL_Delay(500); // delay to the encoder work properly when change direction
+ htim1.Instance->CCR4 = servoMid;
+ HAL_Delay(500);
+
+ double offset = 0; // output Pid
+ double input = 0; // input Pid
+ // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+ uint16_t initPwm = 3000;
+
+ uint16_t pwmValA = initPwm;
+ uint16_t pwmValB = initPwm;
+
+ long leftcount = 0;
+ long rightcount = 0;
+ long initLeftCount = 0;
+ long initRightCount = 0;
+ long countInDistanceL = 0;
+ long countInDistanceR = 0;
+ float currentcount = 0;
+
+///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+ int dirCoef = 1;
+ double Kp, Ki, Kd, KpL, KiL, KdL;
+ if (isForward){
+  Kp = 0; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	Ki = 0;
+	Kd = 0;
+ } else {
+  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+  Ki = 1;
+  Kd = 0.09; // 0.025 look ok but damp quite slow
+  dirCoef = -1;
+ }
+ if (! inLab){
+	 Kp = 1.5;
+	 Ki = 0;
+	 Kd = 0;
+ }
+ PID_TypeDef pidControl, pidControlR;
+
+
+ rightcount = __HAL_TIM_GET_COUNTER(&htim2);
+ leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+ initLeftCount = leftcount;
+ initRightCount = rightcount;
+ isMeasureDis = true;
+ count = 0;
+
+ bool modLeft, modRight;
+ modLeft = true;
+ modRight = true;
+
+ // reset angle
+ gyroZ = 0;
+ curAngle = 0;
+
+ readIR(1);
+ float initIRDis = obsDist_IR;
+ debugObsDist_IR = obsDist_IR;
+ HAL_Delay(100);
+ isMeasureDis = true;
+ do {
+    HAL_Delay(10);
+    readIR(1);
+   	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+   	// since self test always sê gyroZ from -20 to 0 in the stable state
+//   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//   	curAngle += ((gyroZ >= -35 && gyroZ <= 10) ? 0 : gyroZ); //inside lab
+// negative moves it to the left, positive moves it to the right
+   	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+   	input = -curAngle;
+
+    PID_Compute(&pidControl);
+
+    PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+    PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+    PID_SetSampleTime(&pidControl, 10);
+    PID_SetOutputLimits(&pidControl, (int)2300 - initPwm, (int) 3700 - initPwm); //600
+
+
+    if (modRight){
+     pwmValA = initPwm - offset * dirCoef;
+     cnt1A = pwmValA;
+    }
+
+    if (modLeft){
+     pwmValB = initPwm + offset * dirCoef;
+     cnt1B = pwmValB;
+    }
+
+    if (modRight ){
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+    }
+    if (modLeft){
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+    }
+
+    rightcount = __HAL_TIM_GET_COUNTER(&htim2);
+    leftcount = __HAL_TIM_GET_COUNTER(&htim3);
+
+    countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  leftcount);
+    countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount, rightcount);
+
+    *distanceCount = (
+      countInDistanceL + countInDistanceR
+    )/2;
+
+  } while (fabs(obsDist_IR - initIRDis) <= 100);
+ stop_rear_wheels();
+ isMeasureDis = false;
+}
+
+////////////////////////ADC IR END //////////////////////////////////////
+
+//// MOVE OBSTACLE /////
+
+void robot_move_dis_obs() {
+	curAngle = 0; gyroZ = 0;
+	obsDist_US = 0;
+	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
+
+	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+	 __delay_us(&htim4, 10); // wait for 10us
+	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+	 __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
+	 osDelay(200); // give timer interrupt chance to update obsDist_US value
+	 float dis = obsDist_US - 30;
+	 move_straight_PID(true, dis);
+
+	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -1359,11 +1713,11 @@ void motors(void *argument)
 	//	}
 	uint16_t pwmVal;
 	uint16_t pwmVal_2;
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
-	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+//	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+//	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 	/**
 	 * note: if set encoder in different channel, may cause in first for loop, encoder not wake up yet and result in move straight no work
 	 */
@@ -1474,8 +1828,8 @@ void motors(void *argument)
 //				move_straight_three_point(false,5);
 //				three_points_turn_90deg(true);
 //				turn_deg(90, true, true);
-				targetAngle = 90;
-				turn_left(&targetAngle);
+//				targetAngle = 90;
+//				turn_left(&targetAngle);
 //				three_points_turn_90deg(false);
 
 //				for (int i=0; i < 4 ; i++){
@@ -1486,27 +1840,90 @@ void motors(void *argument)
 //				move_straight(false, 100);
 
 				haveTest = true;
+
 			}
 	  	osDelay(1000);
 	  }
   /* USER CODE END motors */
 }
 
-/* USER CODE BEGIN Header_encoder_task */
+/* USER CODE BEGIN Header_move_obs_task */
 /**
-* @brief Function implementing the EncoderTask thread.
+* @brief Function implementing the MoveObs thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_encoder_task */
-void encoder_task(void *argument)
+/* USER CODE END Header_move_obs_task */
+void move_obs_task(void *argument)
 {
-  /* USER CODE BEGIN encoder_task */
+  /* USER CODE BEGIN move_obs_task */
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+
+	bool haveDone = false;
+
+	uint8_t curStep = -1;
+	float length1 = 0;
+	float length2 = 0;
+
+	long distanceCount = 0;
   /* Infinite loop */
-  for (;;){
-  	osDelay(10000);
+  for(;;)
+  {
+  	switch (curStep){
+  	 case 0:
+  		 robot_move_dis_obs();
+  		 curStep += 1;
+  		 break;
+  	 case 1:
+  		 // turn right
+  		curStep += 1;
+  		break;
+  	 case 2:
+  		// if not found IR
+  		// move until found
+  		// => move util not found
+
+  		// if found IR
+  	// move until not foud
+
+  		 // save this value - lenght 1
+  		curStep += 1;
+  		break;
+  	 case 3:
+  		 // turn left 180
+  		 curStep += 1;
+  		 break;
+  	 case 4:
+  		 //  move until no IR - length 2
+
+  		 if (length2 >= length1){
+  			 // turn left 180
+  		 } else {
+  			 // turn left 90
+  			 // turn right 90 - if diff it to small - may remove this and go straight
+  		 }
+  		 curStep += 1;
+  	 case 5:
+  		 robot_move_dis_obs();
+  		 // move the length
+  		 curStep += 1;
+  	 default:
+  		 break;
+  	}
+
+  	if (curStep == -1){
+  		isMeasureDis = true;
+  		move_straight_PID_IR(true, &distanceCount);
+  		curStep -= 1;
+  		haveDone = false;
+  	}
+    osDelay(1000);
   }
-  /* USER CODE END encoder_task */
+  /* USER CODE END move_obs_task */
 }
 
 /* USER CODE BEGIN Header_show */
@@ -1537,25 +1954,25 @@ void show(void *argument)
 //			OLED_ShowString(10, 50, hello);
 
 //			sprintf(hello, "anglenow: %f", curAngle);
-			OLED_ShowString(10, 10, hello);
+//			OLED_ShowString(10, 10, hello);
 
 			/**debug**/
 
 //  				sprintf(hello, "Deg: %d", testDeg);
 //  				OLED_ShowString(10, 20, hello);
 
-//				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
-//				OLED_ShowString(10, 10, hello);
-			sprintf(hello, "GyroZ: %d", gyroZ);
+			sprintf(hello, "dist_IR: %2f", obsDist_IR);
+			OLED_ShowString(10, 10, hello);
+			sprintf(hello, "debug_IR: %2f", debugObsDist_IR);
 			OLED_ShowString(10, 20, hello);
 
-			sprintf(hello, "DiffB: %d", diffB);
+			sprintf(hello, "Dist_US: %2f", obsDist_US);
 			OLED_ShowString(10, 30, hello);
 //
-			sprintf(hello, "PwmA: %d", cnt1A);
+			sprintf(hello, "isMeasure: %d", isMeasureDis);
 			OLED_ShowString(10, 40, hello);
 //
-			sprintf(hello, "PwmB: %d", cnt1B);
+			sprintf(hello, "icCBCount: %d", icCBCount);
 			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);
