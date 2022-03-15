@@ -45,7 +45,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -88,6 +87,7 @@ float targetAngle = 0;
 float curAngle = 0;
 uint8_t readGyroZData[2];
 int16_t gyroZ;
+float angleNow = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,7 +113,6 @@ void show(void *argument);
 uint8_t aRxBuffer[4];
 uint8_t indexer = 0; // to store array index and determine number of incoming chars
 uint8_t data_rx = 0; // to receive incoming uart char
-float targetAngle;
 /* USER CODE END 0 */
 
 /**
@@ -1106,7 +1105,7 @@ void move_straight_10(){
 	osDelay(500);
 }
 
-void turn_left(float * targetAngle)
+void turn_left(float *targetAngle)
 {
 	htim1.Instance->CCR4 = servoMid;
 	osDelay(500);
@@ -1120,33 +1119,58 @@ void turn_left(float * targetAngle)
 	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	float angleNow = 0;
+
+	angleNow = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
-	do {
-	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
-		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-//		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
-		   	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
 
-		  if (abs(angleNow - *targetAngle) < 0.01) break;
-		  last_curTask_tick = HAL_GetTick();
-	  }
-	} while(1);
+	bool isAngle = false;
+
+
+	while (!isAngle){
+		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+
+//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+//  	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+
+			if (angleNow >= 85) {
+				htim1.Instance->CCR4 = servoMid;
+				stop_rear_wheels();
+			}
+		last_curTask_tick = HAL_GetTick();
+		}
+	}
+
+
+
+// ORIGINAL
+//	do {
+//	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+//		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+////		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+////		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+//		   	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+//
+//		  if (abs(angleNow - *targetAngle) < 0.01) break;
+//		  last_curTask_tick = HAL_GetTick();
+//	  }
+//	} while(1);
 
 //	osDelay(630); // set this to change the angle of turn
-	stop_rear_wheels();
+//	stop_rear_wheels();
+
 //  htim1.Instance->CCR4 = servoMid;
 //	osDelay(500);
 }
 
-void turn_right(float * targetAngle)
+void turn_right(float *targetAngle)
 {
 	htim1.Instance->CCR4 = servoMid;
 	osDelay(500);
 	htim1.Instance->CCR4 = servoRight;
-	uint32_t pwmVal = 6000;
+	uint32_t pwmVal = 3000;
 	uint32_t pwmVal_2 = 0;
 
 	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
@@ -1156,20 +1180,39 @@ void turn_right(float * targetAngle)
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 
-	float angleNow = 0;
+	angleNow = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
-	do {
-	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
-		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-//		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
-		  if ((*targetAngle - angleNow) < 0.01) break;
-		  last_curTask_tick = HAL_GetTick();
-	  }
-	} while(1);
-	osDelay(660); // set this to change the angle of turn
-	stop_rear_wheels();
+
+	bool isAngle = false;
+
+	while (!isAngle){
+		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+
+//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+//  	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+
+			if (angleNow <= -85) {
+				htim1.Instance->CCR4 = servoMid;
+				stop_rear_wheels();
+			}
+		last_curTask_tick = HAL_GetTick();
+		}
+	}
+
+//	do {
+//	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
+//		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+////		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
+//		  if ((*targetAngle - angleNow) < 0.01) break;
+//		  last_curTask_tick = HAL_GetTick();
+//	  }
+//	} while(1);
+//	osDelay(660); // set this to change the angle of turn
+//	stop_rear_wheels();
 //	htim1.Instance->CCR4 = servoMid;
 //	osDelay(500);
 }
@@ -1475,7 +1518,13 @@ void motors(void *argument)
 //				three_points_turn_90deg(true);
 //				turn_deg(90, true, true);
 				targetAngle = 90;
-				turn_left(&targetAngle);
+//				turn_left(&targetAngle);
+//				turn_right(&targetAngle);
+				move_straight_PID(true, 200);
+				HAL_Delay(50);
+				move_straight_PID(false, 200);
+
+
 //				three_points_turn_90deg(false);
 
 //				for (int i=0; i < 4 ; i++){
@@ -1537,7 +1586,7 @@ void show(void *argument)
 //			OLED_ShowString(10, 50, hello);
 
 //			sprintf(hello, "anglenow: %f", curAngle);
-			OLED_ShowString(10, 10, hello);
+//			OLED_ShowString(10, 10, hello);
 
 			/**debug**/
 
@@ -1546,17 +1595,26 @@ void show(void *argument)
 
 //				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
 //				OLED_ShowString(10, 10, hello);
-			sprintf(hello, "GyroZ: %d", gyroZ);
+
+
+//			sprintf(hello, "GyroZ: %d", gyroZ);
+//			OLED_ShowString(10, 20, hello);
+
+//			sprintf(hello, "DiffB: %d", diffB);
+//			OLED_ShowString(10, 30, hello);
+//
+//			sprintf(hello, "PwmA: %d", cnt1A);
+//			OLED_ShowString(10, 40, hello);
+////
+//			sprintf(hello, "PwmB: %d", cnt1B);
+//			OLED_ShowString(10, 50, hello);
+
+			sprintf(hello, "angleNow: %f", angleNow);
+			OLED_ShowString(10, 10, hello);
+
+			sprintf(hello, "targetAngle: %f", targetAngle);
 			OLED_ShowString(10, 20, hello);
 
-			sprintf(hello, "DiffB: %d", diffB);
-			OLED_ShowString(10, 30, hello);
-//
-			sprintf(hello, "PwmA: %d", cnt1A);
-			OLED_ShowString(10, 40, hello);
-//
-			sprintf(hello, "PwmB: %d", cnt1B);
-			OLED_ShowString(10, 50, hello);
 			OLED_Refresh_Gram();
     osDelay(100);
   }
