@@ -1879,35 +1879,41 @@ void move_obs_task(void *argument)
   		 curStep += 1;
   		 break;
   	 case 1:
-  		 // turn right
+  		 // turn right 90
   		curStep += 1;
   		break;
   	 case 2:
-  		// if not found IR
+  		 ///// move until pass the obstacle
+  		// if not found IR - haven't meet obstacle yet
   		// move until found
   		// => move util not found
 
-  		// if found IR
-  	// move until not foud
+  		// if found IR - have meet obstacle
+  	  // move until not foud
 
-  		 // save this value - lenght 1
+  		 // save this value - lenght 1 -
   		curStep += 1;
   		break;
   	 case 3:
-  		 // turn left 180
+  		 // turn left 180 - to the other side
   		 curStep += 1;
   		 break;
   	 case 4:
-  		 //  move until no IR - length 2
+  		 // move util pass the obstacle, then turn to other side again
 
   		 if (length2 >= length1){
+  			 // the case that have meet obstacle after fist 1st deg turn
+
   			 // turn left 180
   		 } else {
+  			 // the case that have not meet obstacle after fist 1st deg turn
+
   			 // turn left 90
   			 // turn right 90 - if diff it to small - may remove this and go straight
   		 }
   		 curStep += 1;
   	 case 5:
+  		 // back to the initial pos
   		 robot_move_dis_obs();
   		 // move the length
   		 curStep += 1;
