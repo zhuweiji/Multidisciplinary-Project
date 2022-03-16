@@ -606,7 +606,7 @@ static void MX_TIM4_Init(void)
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -829,26 +829,26 @@ uint8_t icCBCount = 0;
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	icCBCount += 1;
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)  // if the interrupt source is channel1 (TRI: TIM4_CH2)
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)  // if the interrupt source is channel2 (TRI: TIM4_CH2)
 	{
 		if (Is_First_Captured==0) // if the first value is not captured
 		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
+			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
 			Is_First_Captured = 1;  // set the first captured as true
 			// Now change the polarity to falling edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
 		}
 
 		else if (Is_First_Captured==1)   // if the first is already captured
 		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  // read second value
+			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);  // read second value
 			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
 			obsDist_US = (IC_Val2 > IC_Val1 ? (IC_Val2 - IC_Val1) : (65535 - IC_Val1 + IC_Val2)) * 0.034 / 2;
 			Is_First_Captured = 0; // set it back to false
 
 			// set polarity to rising edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-			__HAL_TIM_DISABLE_IT(&htim4, TIM_IT_CC1);
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+			__HAL_TIM_DISABLE_IT(&htim4, TIM_IT_CC2);
 		}
 	}
 }
@@ -1175,6 +1175,72 @@ void move_straight_PID(bool isForward, float distance){
 
  stop_rear_wheels();
  isMeasureDis = false;
+}
+
+void move_straight_no_distance(bool isForward){
+ set_wheel_direction(isForward);
+
+ double offset = 0; // output Pid
+ double input = 0; // input Pid
+ // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
+ uint16_t pwmValA, pwmValB;
+ uint16_t initPwmA = 3000;
+ uint16_t initPwmB = 3000;
+ if (! isForward){
+  initPwmA = 3000;
+  initPwmB = 3000;
+ }
+
+///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
+ int dirCoef = 1;
+ double Kp, Ki, Kd;
+ if (isForward){
+//  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+//  Ki = 1;
+//  Kd = 0.09; // 0.025 look ok but damp quite slow
+  Kp = 0; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+    Ki = 0;
+    Kd = 0;
+ } else {
+  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+  Ki = 1;
+  Kd = 0.09; // 0.025 look ok but damp quite slow
+  dirCoef = -1;
+ }
+ if (! inLab){
+	 Kp = 1.5;
+	 Ki = 0;
+	 Kd = 0;
+ }
+ PID_TypeDef pidControl;
+	 bool modLeft, modRight;
+	 modLeft = true;
+	 modRight = true;
+
+	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+	input = -curAngle;
+
+	PID_Compute(&pidControl);
+
+	PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
+	PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
+	PID_SetSampleTime(&pidControl, 10);
+	PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
+
+	if (modRight){
+	 pwmValA = initPwmA - offset * dirCoef;
+	}
+
+	if (modLeft){
+	 pwmValB = initPwmB + offset * dirCoef;
+	}
+  if (modRight){
+   __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+  }
+  if (modLeft){
+   __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+  }
 }
 
 /* distance should be in cm ALT FUNCTION FOR THREE POINT*/
@@ -1644,25 +1710,41 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
 ////////////////////////ADC IR END //////////////////////////////////////
 
 //// MOVE OBSTACLE /////
-
+uint32_t last_curTask_tick = 0;
 void robot_move_dis_obs() {
-//	curAngle = 0; gyroZ = 0;
-//	obsDist_US = 0;
-	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
+	curAngle = 0; gyroZ = 0;
+	obsDist_US = 1000;
+	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
+	last_curTask_tick = HAL_GetTick();
+//	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+//	__delay_us(&htim4, 10); // wait for 10us
+//	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+//	__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 
-	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-	__delay_us(&htim4, 1000); // wait for 10us
-	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-	__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
 
-
-//	osDelay(200); // give timer interrupt chance to update obsDist_US value
+//	osDelay(10); // give timer interrupt chance to update obsDist_US value
 //	float dis = obsDist_US - 30;
 //	targetAngle = 90;
 //
 //	move_straight_PID(true, dis);
+//	last_curTask_tick = HAL_GetTick();
 
-	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
+	do {
+		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+		__delay_us(&htim4, 10); // wait for 10us
+		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
+		osDelay(10); // give timer interrupt chance to update obsDist_US value
+		if (obsDist_US <= 20) break;
+		if (HAL_GetTick() - last_curTask_tick >=10) {
+			move_straight_no_distance(true);
+			last_curTask_tick = HAL_GetTick();
+		}
+		isMeasureDis = true;
+	} while (1);
+
+	stop_rear_wheels();
+	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 }
 
 void week_9_v1() {
@@ -1802,7 +1884,6 @@ void week_9_v1() {
 	 move_straight_PID(true, 80);
 	 HAL_Delay(130);
 
-	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
 }
 /* USER CODE END 4 */
 
@@ -1963,7 +2044,6 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-//				move_straight(true, 200);
 //				move_straight(false, 100);
 
 //				move_straight_three_point(true,5);
@@ -1988,7 +2068,8 @@ void motors(void *argument)
 //				targetAngle = 90;
 //				turn_left(&targetAngle);
 //				turn_right(&targetAngle);
-				week_9_v1();
+//				week_9_v1();
+				robot_move_dis_obs();
 
 				haveTest = true;
 
@@ -2072,12 +2153,12 @@ void move_obs_task(void *argument)
   		 break;
   	}
 
-  	if (curStep == -1){
-  		isMeasureDis = true;
-  		move_straight_PID_IR(true, &distanceCount);
-  		curStep -= 1;
-  		haveDone = false;
-  	}
+//  	if (curStep == -1){
+//  		isMeasureDis = true;
+//  		move_straight_PID_IR(true, &distanceCount);
+//  		curStep -= 1;
+//  		haveDone = false;
+//  	}
     osDelay(1000);
   }
   /* USER CODE END move_obs_task */
@@ -2093,12 +2174,18 @@ void move_obs_task(void *argument)
 void show(void *argument)
 {
   /* USER CODE BEGIN show */
+	uint8_t hello[20] = "";
   /* Infinite loop */
   for(;;)
   {
-//	 OLED_Refresh_Gram();
-
-    osDelay(1);
+		sprintf(hello, "obsUS %f", obsDist_US);
+		OLED_ShowString(10, 0, hello);
+		sprintf(hello, "IRc %d", icCBCount);
+	  OLED_ShowString(10, 10, hello);
+	  sprintf(hello, "run %d", isMeasureDis);
+	  OLED_ShowString(10, 20, hello);
+	  OLED_Refresh_Gram();
+    osDelay(100);
   }
   /* USER CODE END show */
 }
