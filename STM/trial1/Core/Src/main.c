@@ -1267,7 +1267,8 @@ void turn_left(float * targetAngle)
 
 			if (angleNow >= 85) {
 				htim1.Instance->CCR4 = servoMid;
-				stop_rear_wheels();
+	//			stop_rear_wheels();
+				break;
 			}
 		last_curTask_tick = HAL_GetTick();
 		}
@@ -1324,7 +1325,8 @@ void turn_right(float * targetAngle)
 
 			if (angleNow <= -85) {
 				htim1.Instance->CCR4 = servoMid;
-				stop_rear_wheels();
+				//stop_rear_wheels();
+				break;
 			}
 		last_curTask_tick = HAL_GetTick();
 		}
@@ -1619,21 +1621,78 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
 //// MOVE OBSTACLE /////
 
 void robot_move_dis_obs() {
-	curAngle = 0; gyroZ = 0;
-	obsDist_US = 0;
+//	curAngle = 0; gyroZ = 0;
+//	obsDist_US = 0;
 	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
 
-	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-	 __delay_us(&htim4, 10); // wait for 10us
-	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-	 __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
-	 osDelay(200); // give timer interrupt chance to update obsDist_US value
-	 float dis = obsDist_US - 30;
-	 move_straight_PID(true, dis);
+	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+	__delay_us(&htim4, 10); // wait for 10us
+	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+	__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
+
+
+//	osDelay(200); // give timer interrupt chance to update obsDist_US value
+//	float dis = obsDist_US - 30;
+//	targetAngle = 90;
+//
+//	move_straight_PID(true, dis);
 
 	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
 }
 
+void week_9_v1() {
+//	curAngle = 0; gyroZ = 0;
+//	obsDist_US = 0;
+//	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
+//
+//	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+//	 __delay_us(&htim4, 10); // wait for 10us
+//	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+//	 __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
+//	 osDelay(200); // give timer interrupt chance to update obsDist_US value
+//	 float dis = obsDist_US - 30;
+	 targetAngle = 90;
+
+//	 move_straight_PID(true, dis);
+
+//	 robot_move_dis_obs();
+//	 HAL_Delay(500);
+	 move_straight_PID(true, 100);
+	 HAL_Delay(500);
+	 turn_right(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+	 targetAngle = 90;
+	 move_straight_PID(true, 75);
+	 HAL_Delay(500);
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 targetAngle = 90;
+	 HAL_Delay(500);
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 targetAngle = 90;
+	 HAL_Delay(500);
+	 move_straight_PID(true, 160);
+	 HAL_Delay(500);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+	 move_straight_PID(true, 75);
+	 HAL_Delay(500);
+	 targetAngle = 90;
+	 turn_right(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+	// move_straight_PID(true, dis);
+
+	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -1818,6 +1877,9 @@ void motors(void *argument)
 //				targetAngle = 90;
 //				turn_left(&targetAngle);
 //				turn_right(&targetAngle);
+
+				week_9_v1();
+
 				haveTest = true;
 
 			}
