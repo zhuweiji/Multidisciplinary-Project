@@ -1268,7 +1268,7 @@ void turn_left(float * targetAngle)
 			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
 			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
 
-			if (angleNow >= 85) {
+			if (angleNow >= 83) {
 				htim1.Instance->CCR4 = servoMid;
 	//			stop_rear_wheels();
 				break;
@@ -1502,8 +1502,15 @@ void three_points_turn_90deg(bool isRight){
 uint16_t obsTick_IR = 0;
 float obsDist_IR = 0;
 float debugObsDist_IR = 0;
+float GLOBAL_IR_COUNTER = 0;
 
 void readIR(int irNum){
+	uint8_t hello[20] = "";
+	sprintf(hello, "IR counter %f", GLOBAL_IR_COUNTER);
+	OLED_ShowString(10, 60, hello);
+
+	GLOBAL_IR_COUNTER ++;
+
 	uint16_t dataPoint = 0; uint32_t IR_data_raw_acc = 0;
 	isMeasureDis = true;
 	if (irNum == 1){
@@ -1655,107 +1662,99 @@ void robot_move_dis_obs() {
 }
 
 void week_9_v1() {
-//	curAngle = 0; gyroZ = 0;
-//	obsDist_US = 0;
-//	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
+
+	uint8_t hello[20] = "";
+	sprintf(hello, "MDP SUGOII", 0);
+	OLED_ShowString(10, 20, hello);
 //
-//	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-//	 __delay_us(&htim4, 10); // wait for 10us
-//	 HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-//	 __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
-//	 osDelay(200); // give timer interrupt chance to update obsDist_US value
-//	 float dis = obsDist_US - 30;
-//	 targetAngle = 90;
+	HAL_Delay(2000);
 
-//	 move_straight_PID(true, dis);
-
-//	 robot_move_dis_obs();
-//	 HAL_Delay(500);
-
-	 move_straight_PID(true, 200);
-	 HAL_Delay(1000);
-
-	 targetAngle = 90;
-	 turn_right(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(1000);
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(1000);
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(1000);
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(1000);
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(1000);
+//	readIR(1);
+//	HAL_Delay(2000);
+////	sprintf(hello, "IR1 %f", fabs(obsDist_IR));
+////	OLED_ShowString(10, 20, hello);
+//	readIR(1);
+//	HAL_Delay(2000);
 //
-	 move_straight_PID(true, 75);
-	 HAL_Delay(1000);
+//	readIR(1);
+//	HAL_Delay(2000);
+//
+//	readIR(1);
+//	HAL_Delay(2000);
+//
+//	readIR(1);
+//	HAL_Delay(2000);
+//
+//	readIR(1);
+//	HAL_Delay(2000);
 
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
+	readIR(1);
+	while (obsDist_IR > 15)
+	{
+		readIR(1);
 
-	 move_straight_PID(true, 10);
-	 HAL_Delay(500);
+		sprintf(hello, "IR1 %f", fabs(obsDist_IR));
+		OLED_ShowString(10, 20, hello);
+		OLED_Refresh_Gram();
 
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
+		move_straight_PID(true, 10);
 
-	 move_straight_PID(true, 135);
-	 HAL_Delay(500);
+		obsDist_IR = 0;
+		readIR(1);
+	}
 
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
 
-	 move_straight_PID(true, 10);
-	 HAL_Delay(500);
 
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
-
-	 move_straight_PID(true, 30);
-	 HAL_Delay(500);
-
-	 targetAngle = 90;
-	 turn_right(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
-
-	 move_straight_PID(true, 80);
-	 HAL_Delay(500);
-
-//	 turn_left(&targetAngle);
+//	 move_straight_PID(true, 150);
+//	 HAL_Delay(100);
+//
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
 //	 stop_rear_wheels();
-//	 move_straight_PID(true, 5);
-//	 HAL_Delay(250);
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 75);
+//	 HAL_Delay(100);
+//
 //	 targetAngle = 90;
 //	 turn_left(&targetAngle);
 //	 stop_rear_wheels();
-//	 HAL_Delay(250);
-//	 move_straight_PID(true, 75);
-//	 HAL_Delay(250);
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 10);
+//	 HAL_Delay(100);
+//
+//	 targetAngle = 90;
+//	 turn_left(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 135);
+//	 HAL_Delay(100);
+//
+//	 targetAngle = 90;
+//	 turn_left(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 10);
+//	 HAL_Delay(100);
+//
+//	 targetAngle = 90;
+//	 turn_left(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 30);
+//	 HAL_Delay(100);
+//
 //	 targetAngle = 90;
 //	 turn_right(&targetAngle);
 //	 stop_rear_wheels();
-//	 move_straight_PID(true, 75);
-//	 HAL_Delay(250);
-//	 move_straight_PID(true, 100);
-	// move_straight_PID(true, dis);
+//	 HAL_Delay(100);
+//
+//	 move_straight_PID(true, 80);
+//	 HAL_Delay(130);
 
 	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
 }
@@ -2041,7 +2040,7 @@ void move_obs_task(void *argument)
 
 /* USER CODE BEGIN Header_show */
 /**
-* @brief Function implementing the OLED thread.
+* @brief Function implementing the ShowTask thread.
 * @param argument: Not used
 * @retval None
 */
@@ -2049,66 +2048,12 @@ void move_obs_task(void *argument)
 void show(void *argument)
 {
   /* USER CODE BEGIN show */
-  uint8_t hello[20] = "Hello World!\0";
   /* Infinite loop */
   for(;;)
   {
-	  //			sprintf(hello, "Cmd ready: %d", commandReady);
-	  //			OLED_ShowString(10, 20, hello);
+//	 OLED_Refresh_Gram();
 
-	  //			sprintf(hello, "Rec UART: %d", receivingUART);
-	  //			OLED_ShowString(10, 30, hello);
-	  //
-	  //
-	  //			sprintf(hello, "Count cbtx: %d", txCount);
-	  //			OLED_ShowString(10, 40, hello);
-	  //
-	  //			sprintf(hello, "Send back: %d", haveSendSignalBack);
-	  //			OLED_ShowString(10, 50, hello);
-
-	  //			sprintf(hello, "anglenow: %f", curAngle);
-	  //			OLED_ShowString(10, 10, hello);
-	  			//OLED_ShowString(10, 10, hello);
-
-	  			/**debug**/
-
-	  //  				sprintf(hello, "Deg: %d", testDeg);
-	  //  				OLED_ShowString(10, 20, hello);
-
-	  //				sprintf(hello, "isDown: %d %d", isDownA, isDownB);
-	  //				OLED_ShowString(10, 10, hello);
-
-
-	  //			sprintf(hello, "GyroZ: %d", gyroZ);
-	  //			OLED_ShowString(10, 20, hello);
-
-	  //			sprintf(hello, "DiffB: %d", diffB);
-	  //			OLED_ShowString(10, 30, hello);
-	  //
-	  //			sprintf(hello, "PwmA: %d", cnt1A);
-	  //			OLED_ShowString(10, 40, hello);
-	  ////
-	  //			sprintf(hello, "PwmB: %d", cnt1B);
-	  //			OLED_ShowString(10, 50, hello);
-
-//	  			sprintf(hello, "angleNow: %f", angleNow);
-//	  			OLED_ShowString(10, 10, hello);
-//
-//	  			sprintf(hello, "targetAngle: %f", targetAngle);
-//
-//	  			sprintf(hello, "GyroZ: %d", gyroZ);
-//	  			OLED_ShowString(10, 20, hello);
-//
-//	  			sprintf(hello, "US: %f", obsDist_US);
-//	  			OLED_ShowString(10, 30, hello);
-//	  //
-//	  			sprintf(hello, "PwmA: %d", cnt1A);
-//	  			OLED_ShowString(10, 40, hello);
-//	  //
-//	  			sprintf(hello, "PwmB: %d", cnt1B);
-//	  			OLED_ShowString(10, 50, hello);
-	  			OLED_Refresh_Gram();
-    osDelay(100);
+    osDelay(1);
   }
   /* USER CODE END show */
 }
