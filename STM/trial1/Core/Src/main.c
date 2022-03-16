@@ -1581,11 +1581,14 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
  gyroZ = 0;
  curAngle = 0;
 
+
+
  readIR(1);
  float initIRDis = obsDist_IR;
  debugObsDist_IR = obsDist_IR;
  HAL_Delay(100);
  isMeasureDis = true;
+
  do {
     HAL_Delay(10);
     readIR(1);
@@ -1632,7 +1635,8 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
       countInDistanceL + countInDistanceR
     )/2;
 
-  } while (fabs(obsDist_IR - initIRDis) <= 100);
+  } while (obsDist_IR - initIRDis <= 15);
+
  stop_rear_wheels();
  isMeasureDis = false;
 }
@@ -1664,10 +1668,10 @@ void robot_move_dis_obs() {
 void week_9_v1() {
 
 	uint8_t hello[20] = "";
-	sprintf(hello, "MDP SUGOII", 0);
+	sprintf(hello, "KG FOR GL", 0);
 	OLED_ShowString(10, 20, hello);
 //
-	HAL_Delay(2000);
+	HAL_Delay(50);
 
 //	readIR(1);
 //	HAL_Delay(2000);
@@ -1688,73 +1692,115 @@ void week_9_v1() {
 //	readIR(1);
 //	HAL_Delay(2000);
 
-	readIR(1);
-	while (obsDist_IR > 15)
-	{
-		readIR(1);
+//	readIR(1);
+//	while (obsDist_IR > 15)
+//	{
+////		readIR(1);
+//
+//		sprintf(hello, "IR1 %f", obsDist_IR);
+//		OLED_ShowString(10, 20, hello);
+//		OLED_Refresh_Gram();
+//
+//		move_straight_PID_IR(true, 10);
+//
+//		obsDist_IR = 0;
+//		readIR(1);
+//	}
 
-		sprintf(hello, "IR1 %f", fabs(obsDist_IR));
+	float obsDist_IR_value = 0;
+
+	 move_straight_PID(true, 150);
+	 HAL_Delay(100);
+
+	 targetAngle = 90;
+	 turn_right(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
+
+	readIR(2);
+	sprintf(hello, "IR1 %f", obsDist_IR);
+	OLED_ShowString(10, 20, hello);
+	OLED_Refresh_Gram();
+
+	obsDist_IR_value = fabs(obsDist_IR);
+	while (obsDist_IR_value < 20) {
+		sprintf(hello, "IR1 %f", obsDist_IR);
 		OLED_ShowString(10, 20, hello);
 		OLED_Refresh_Gram();
 
-		move_straight_PID(true, 10);
-
+		move_straight_PID(true, 20);
 		obsDist_IR = 0;
-		readIR(1);
+		readIR(2);
+		obsDist_IR_value = fabs(obsDist_IR);
 	}
 
 
 
-//	 move_straight_PID(true, 150);
-//	 HAL_Delay(100);
-//
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
+
 //
 //	 move_straight_PID(true, 75);
 //	 HAL_Delay(100);
 //
-//	 targetAngle = 90;
-//	 turn_left(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
+
+	 move_straight_PID(true, 10);
+	 HAL_Delay(100);
 //
-//	 move_straight_PID(true, 10);
-//	 HAL_Delay(100);
-//
-//	 targetAngle = 90;
-//	 turn_left(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
+
+	 move_straight_PID(true, 20);
+	 HAL_Delay(100);
+
+	readIR(2);
+	sprintf(hello, "IR1 %f", obsDist_IR);
+	OLED_ShowString(10, 20, hello);
+	OLED_Refresh_Gram();
+
+	obsDist_IR_value = fabs(obsDist_IR);
+	while (obsDist_IR_value < 20) {
+		sprintf(hello, "IR1 %f", obsDist_IR);
+		OLED_ShowString(10, 20, hello);
+		OLED_Refresh_Gram();
+
+		move_straight_PID(true, 20);
+		obsDist_IR = 0;
+		readIR(2);
+		obsDist_IR_value = fabs(obsDist_IR);
+	}
+
 //
 //	 move_straight_PID(true, 135);
 //	 HAL_Delay(100);
 //
-//	 targetAngle = 90;
-//	 turn_left(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
 //
-//	 move_straight_PID(true, 10);
-//	 HAL_Delay(100);
+	 move_straight_PID(true, 10);
+	 HAL_Delay(100);
 //
-//	 targetAngle = 90;
-//	 turn_left(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
+
+	 move_straight_PID(true, 30);
+	 HAL_Delay(100);
 //
-//	 move_straight_PID(true, 30);
-//	 HAL_Delay(100);
+	 targetAngle = 90;
+	 turn_right(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(100);
 //
-//	 targetAngle = 90;
-//	 turn_right(&targetAngle);
-//	 stop_rear_wheels();
-//	 HAL_Delay(100);
-//
-//	 move_straight_PID(true, 80);
-//	 HAL_Delay(130);
+	 move_straight_PID(true, 80);
+	 HAL_Delay(130);
 
 	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
 }
@@ -1942,7 +1988,6 @@ void motors(void *argument)
 //				targetAngle = 90;
 //				turn_left(&targetAngle);
 //				turn_right(&targetAngle);
-
 				week_9_v1();
 
 				haveTest = true;
