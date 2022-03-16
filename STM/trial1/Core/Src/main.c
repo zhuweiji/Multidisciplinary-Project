@@ -1626,7 +1626,7 @@ void robot_move_dis_obs() {
 	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
 
 	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-	__delay_us(&htim4, 10); // wait for 10us
+	__delay_us(&htim4, 1000); // wait for 10us
 	HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 	__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
 
@@ -1655,7 +1655,7 @@ void week_9_v1() {
 
 //	 move_straight_PID(true, dis);
 
-//	 robot_move_dis_obs();
+	 robot_move_dis_obs();
 //	 HAL_Delay(500);
 	 move_straight_PID(true, 100);
 	 HAL_Delay(500);
@@ -1665,30 +1665,35 @@ void week_9_v1() {
 	 targetAngle = 90;
 	 move_straight_PID(true, 75);
 	 HAL_Delay(500);
+	 move_straight_PID(true, 5);
 	 turn_left(&targetAngle);
 	 stop_rear_wheels();
 	 targetAngle = 90;
-	 HAL_Delay(500);
+	 HAL_Delay(250);
 	 turn_left(&targetAngle);
 	 stop_rear_wheels();
+	 move_straight_PID(true, 5);
 	 targetAngle = 90;
-	 HAL_Delay(500);
+	 HAL_Delay(250);
 	 move_straight_PID(true, 160);
-	 HAL_Delay(500);
+	 HAL_Delay(250);
 	 targetAngle = 90;
 	 turn_left(&targetAngle);
 	 stop_rear_wheels();
-	 HAL_Delay(500);
+	 move_straight_PID(true, 5);
+	 HAL_Delay(250);
 	 targetAngle = 90;
 	 turn_left(&targetAngle);
 	 stop_rear_wheels();
-	 HAL_Delay(500);
+	 HAL_Delay(250);
 	 move_straight_PID(true, 75);
-	 HAL_Delay(500);
+	 HAL_Delay(250);
 	 targetAngle = 90;
 	 turn_right(&targetAngle);
 	 stop_rear_wheels();
-	 HAL_Delay(500);
+	 move_straight_PID(true, 75);
+	 HAL_Delay(250);
+	 move_straight_PID(true, 100);
 	// move_straight_PID(true, dis);
 
 	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
@@ -2029,10 +2034,11 @@ void show(void *argument)
 	  			OLED_ShowString(10, 10, hello);
 
 	  			sprintf(hello, "targetAngle: %f", targetAngle);
+
 	  			sprintf(hello, "GyroZ: %d", gyroZ);
 	  			OLED_ShowString(10, 20, hello);
 
-	  			sprintf(hello, "DiffB: %d", diffB);
+	  			sprintf(hello, "US: %f", obsDist_US);
 	  			OLED_ShowString(10, 30, hello);
 	  //
 	  			sprintf(hello, "PwmA: %d", cnt1A);
