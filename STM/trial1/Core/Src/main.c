@@ -1250,6 +1250,9 @@ void turn_left(float * targetAngle)
 	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+
+	set_wheel_direction(true);
+
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 
@@ -1296,25 +1299,35 @@ void turn_left(float * targetAngle)
 
 void turn_right(float * targetAngle)
 {
+	uint8_t hello[20] = "";
+	sprintf(hello, "start", angleNow);
+	OLED_ShowString(10, 10, hello);
 	htim1.Instance->CCR4 = servoMid;
-	osDelay(500);
+	HAL_Delay(500);
+	//osDelay(500);
 	htim1.Instance->CCR4 = servoRight;
 	uint32_t pwmVal = 3000;
 	uint32_t pwmVal_2 = 0;
-
+	sprintf(hello, "here1", angleNow);
+	OLED_ShowString(10, 10, hello);
 	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+	sprintf(hello, "fckmdp", angleNow);
+	OLED_ShowString(10, 10, hello);
+	set_wheel_direction(true);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-
+	sprintf(hello, "fckkg", angleNow);
+	OLED_ShowString(10, 10, hello);
 	angleNow = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
 
 	bool isAngle = false;
-
+	sprintf(hello, "before", angleNow);
+	OLED_ShowString(10, 10, hello);
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
 			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
@@ -1331,7 +1344,8 @@ void turn_right(float * targetAngle)
 		last_curTask_tick = HAL_GetTick();
 		}
 	}
-
+	sprintf(hello, "finish", angleNow);
+	OLED_ShowString(10, 10, hello);
 //	do {
 //	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
 //		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
@@ -1651,49 +1665,96 @@ void week_9_v1() {
 //	 __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC1);
 //	 osDelay(200); // give timer interrupt chance to update obsDist_US value
 //	 float dis = obsDist_US - 30;
-	 targetAngle = 90;
+//	 targetAngle = 90;
 
 //	 move_straight_PID(true, dis);
 
-	 robot_move_dis_obs();
+//	 robot_move_dis_obs();
 //	 HAL_Delay(500);
-	 move_straight_PID(true, 100);
-	 HAL_Delay(500);
-	 turn_right(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(500);
-	 targetAngle = 90;
-	 move_straight_PID(true, 75);
-	 HAL_Delay(500);
-	 move_straight_PID(true, 5);
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 targetAngle = 90;
-	 HAL_Delay(250);
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 move_straight_PID(true, 5);
-	 targetAngle = 90;
-	 HAL_Delay(250);
-	 move_straight_PID(true, 160);
-	 HAL_Delay(250);
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 move_straight_PID(true, 5);
-	 HAL_Delay(250);
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(250);
-	 move_straight_PID(true, 75);
-	 HAL_Delay(250);
+
+	 move_straight_PID(true, 200);
+	 HAL_Delay(1000);
+
 	 targetAngle = 90;
 	 turn_right(&targetAngle);
 	 stop_rear_wheels();
+	 HAL_Delay(1000);
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(1000);
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(1000);
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(1000);
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(1000);
+//
 	 move_straight_PID(true, 75);
-	 HAL_Delay(250);
-	 move_straight_PID(true, 100);
+	 HAL_Delay(1000);
+
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+
+	 move_straight_PID(true, 10);
+	 HAL_Delay(500);
+
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+
+	 move_straight_PID(true, 135);
+	 HAL_Delay(500);
+
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+
+	 move_straight_PID(true, 10);
+	 HAL_Delay(500);
+
+	 targetAngle = 90;
+	 turn_left(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+
+	 move_straight_PID(true, 30);
+	 HAL_Delay(500);
+
+	 targetAngle = 90;
+	 turn_right(&targetAngle);
+	 stop_rear_wheels();
+	 HAL_Delay(500);
+
+	 move_straight_PID(true, 80);
+	 HAL_Delay(500);
+
+//	 turn_left(&targetAngle);
+//	 stop_rear_wheels();
+//	 move_straight_PID(true, 5);
+//	 HAL_Delay(250);
+//	 targetAngle = 90;
+//	 turn_left(&targetAngle);
+//	 stop_rear_wheels();
+//	 HAL_Delay(250);
+//	 move_straight_PID(true, 75);
+//	 HAL_Delay(250);
+//	 targetAngle = 90;
+//	 turn_right(&targetAngle);
+//	 stop_rear_wheels();
+//	 move_straight_PID(true, 75);
+//	 HAL_Delay(250);
+//	 move_straight_PID(true, 100);
 	// move_straight_PID(true, dis);
 
 	HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_1);
@@ -2007,7 +2068,7 @@ void show(void *argument)
 
 	  //			sprintf(hello, "anglenow: %f", curAngle);
 	  //			OLED_ShowString(10, 10, hello);
-	  			OLED_ShowString(10, 10, hello);
+	  			//OLED_ShowString(10, 10, hello);
 
 	  			/**debug**/
 
@@ -2030,22 +2091,22 @@ void show(void *argument)
 	  //			sprintf(hello, "PwmB: %d", cnt1B);
 	  //			OLED_ShowString(10, 50, hello);
 
-	  			sprintf(hello, "angleNow: %f", angleNow);
-	  			OLED_ShowString(10, 10, hello);
-
-	  			sprintf(hello, "targetAngle: %f", targetAngle);
-
-	  			sprintf(hello, "GyroZ: %d", gyroZ);
-	  			OLED_ShowString(10, 20, hello);
-
-	  			sprintf(hello, "US: %f", obsDist_US);
-	  			OLED_ShowString(10, 30, hello);
-	  //
-	  			sprintf(hello, "PwmA: %d", cnt1A);
-	  			OLED_ShowString(10, 40, hello);
-	  //
-	  			sprintf(hello, "PwmB: %d", cnt1B);
-	  			OLED_ShowString(10, 50, hello);
+//	  			sprintf(hello, "angleNow: %f", angleNow);
+//	  			OLED_ShowString(10, 10, hello);
+//
+//	  			sprintf(hello, "targetAngle: %f", targetAngle);
+//
+//	  			sprintf(hello, "GyroZ: %d", gyroZ);
+//	  			OLED_ShowString(10, 20, hello);
+//
+//	  			sprintf(hello, "US: %f", obsDist_US);
+//	  			OLED_ShowString(10, 30, hello);
+//	  //
+//	  			sprintf(hello, "PwmA: %d", cnt1A);
+//	  			OLED_ShowString(10, 40, hello);
+//	  //
+//	  			sprintf(hello, "PwmB: %d", cnt1B);
+//	  			OLED_ShowString(10, 50, hello);
 	  			OLED_Refresh_Gram();
     osDelay(100);
   }
