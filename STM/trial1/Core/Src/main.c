@@ -1709,14 +1709,14 @@ void robot_move_dis_obs(float *disCount) {
 		__delay_us(&htim4, 10); // wait for 10us
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
-		osDelay(10); // give timer interrupt chance to update obsDist_US value
+		selfDelay(100); // give timer interrupt chance to update obsDist_US value
 		if (obsDist_US <= 35) {
 			stop_rear_wheels();
 			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 			return;
 		}
 		if (HAL_GetTick() - last_curTask_tick >=10) {
-			move_straight_no_distance(true);
+			move_straight_PID(true, 10);
 			last_curTask_tick = HAL_GetTick();
 
 			countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
@@ -1847,6 +1847,33 @@ void main_test_IR(){
   * @retval None
   */
 /* USER CODE END Header_StartDefaultTask */
+
+void main_test_US_move_20(){
+	htim1.Instance->CCR4 = servoMid;
+	curAngle = 0; gyroZ = 0;
+	obsDist_US = 1000;
+	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
+	HAL_Delay(500);
+
+	// reads US constantly
+	last_curTask_tick = HAL_GetTick();
+	do {
+		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+		__delay_us(&htim4, 10); // wait for 10us
+		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+		HAL_Delay(50); // give timer interrupt chance to update obsDist_US value
+		if (obsDist_US <= 35) {
+			stop_rear_wheels();
+			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
+			return;
+		}
+		if (HAL_GetTick() - last_curTask_tick >=10) {
+			move_straight_PID(true, 10);
+		}
+	} while (1);
+
+}
+
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
@@ -2009,7 +2036,13 @@ void motors(void *argument)
 /* for test */
 			if (! haveTest){
 //				HAL_Delay(1000);
-//				week_9_v1(0);
+
+
+				week_9_v1(0);
+
+//				main_test_US_move_20();
+
+
 //				main_test_IR();
 
 
@@ -2122,15 +2155,19 @@ void move_obs_task(void *argument)
 void show(void *argument)
 {
   /* USER CODE BEGIN show */
-//	uint8_t hello[20] = "";
+	uint8_t hello[20] = "";
   /* Infinite loop */
 
   for(;;)
   {
 //  	sprintf(hello, "US:%-4d|IR:%-4d", (int)obsDist_US, (int)obsDist_IR);
 //  	OLED_ShowString(10, 0, hello);
-//	  sprintf(hello, "mbdC %f", movebackDisCount);
-//	  OLED_ShowString(10, 10, hello);
+
+
+//	  sprintf(hello, "US %f", obsDist_US);
+//	  OLED_ShowString(10, 20, hello);
+
+
 //	  sprintf(hello, "cmdCount %d", cmdCount);
 //	  OLED_ShowString(10, 20, hello);
 //	  OLED_Refresh_Gram();
