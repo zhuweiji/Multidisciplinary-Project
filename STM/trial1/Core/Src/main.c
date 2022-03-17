@@ -1667,7 +1667,7 @@ void robot_move_dis_obs() {
 uint16_t cmdCount = 0;
 void week_9_v1() {
 
-	// Initialisation of IR value
+	// Initialisation of IR value of first version
 	float obsDist_IR_value = 0;
 	uint32_t delayTick = 100;
 	cmdCount = 0;
