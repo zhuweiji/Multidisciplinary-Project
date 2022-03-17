@@ -1509,6 +1509,7 @@ void readIR(int irNum){
 		__ADC_Read_Dist(&hadc2, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
 		HAL_ADC_Stop(&hadc2);
 	}
+	debugObsDist_IR = fabs(obsDist_IR);
 }
 
 void move_straight_PID_IR(bool isForward, long* distanceCount){
@@ -1630,137 +1631,196 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
  isMeasureDis = false;
 }
 
+uint32_t last_curTask_tick = 0;
+void robot_move_dis_IR(float* disCount){
+	curAngle = 0; gyroZ = 0;
+	htim1.Instance->CCR4 = servoMid;
+	readIR(2);
+	HAL_Delay(500);
+	long countInDistanceL = 0;
+	long countInDistanceR = 0;
+
+	long initLeftCount = __HAL_TIM_GET_COUNTER(&htim3);
+	long initRightCount = __HAL_TIM_GET_COUNTER(&htim2);
+
+	last_curTask_tick = HAL_GetTick();
+  while (debugObsDist_IR < 30) {
+		if (HAL_GetTick() - last_curTask_tick >=10) {
+			move_straight_PID(true, 20);
+			last_curTask_tick = HAL_GetTick();
+
+			countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
+			countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount,  __HAL_TIM_GET_COUNTER(&htim2));
+			*disCount = (countInDistanceL + countInDistanceR)/2;
+		}
+		readIR(2);
+	}
+	stop_rear_wheels();
+}
 ////////////////////////ADC IR END //////////////////////////////////////
 
 //// MOVE OBSTACLE /////
-uint32_t last_curTask_tick = 0;
-void robot_move_dis_obs() {
+//void robot_move_dis_obs() {
+//	htim1.Instance->CCR4 = servoMid;
+//	curAngle = 0; gyroZ = 0;
+//	obsDist_US = 1000;
+//	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
+//	HAL_Delay(500);
+//
+//	// reads US constantly
+//	last_curTask_tick = HAL_GetTick();
+//	do {
+////		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
+//		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+//		__delay_us(&htim4, 10); // wait for 10us
+//		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
+//		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
+//		osDelay(10); // give timer interrupt chance to update obsDist_US value
+//		if (obsDist_US <= 35){
+//			stop_rear_wheels();
+//			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
+//			return;
+//		}
+//		else if (HAL_GetTick() - last_curTask_tick >=10) {
+//			move_straight_no_distance(true);
+//			last_curTask_tick = HAL_GetTick();
+//		}
+//		isMeasureDis = true;
+//	} while (1);
+//}
+
+void robot_move_dis_obs(float *disCount) {
 	htim1.Instance->CCR4 = servoMid;
 	curAngle = 0; gyroZ = 0;
 	obsDist_US = 1000;
 	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
 	HAL_Delay(500);
 
+	long countInDistanceL = 0;
+	long countInDistanceR = 0;
+
+	long initLeftCount = __HAL_TIM_GET_COUNTER(&htim3);
+	long initRightCount = __HAL_TIM_GET_COUNTER(&htim2);
+
 	// reads US constantly
 	last_curTask_tick = HAL_GetTick();
 	do {
-//		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
 		__delay_us(&htim4, 10); // wait for 10us
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 		osDelay(10); // give timer interrupt chance to update obsDist_US value
-		if (obsDist_US <= 35){
+		if (obsDist_US <= 35) {
 			stop_rear_wheels();
 			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 			return;
 		}
-		else if (HAL_GetTick() - last_curTask_tick >=10) {
+		if (HAL_GetTick() - last_curTask_tick >=10) {
 			move_straight_no_distance(true);
 			last_curTask_tick = HAL_GetTick();
+
+			countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
+			countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount,  __HAL_TIM_GET_COUNTER(&htim2));
+			*disCount = (countInDistanceL + countInDistanceR)/2;
 		}
-		isMeasureDis = true;
 	} while (1);
 }
 
-
 uint16_t cmdCount = 0;
-void week_9_v1() {
+float movebackDisCount = 0;
+
+void selfDelay(uint32_t ticks){
+	osDelay(ticks);
+}
+void week_9_v1(int indicate) {
 
 	// Initialisation of IR value of first version
 	float obsDist_IR_value = 0;
+
+	/// count track value
+	float uSDisCount = 0;
+	float irDisCount1 = 0;
+	float irDisCount2 = 0;
+
+	float rightTurnDia = 60; // found by measure displacement
+	float initStraightDis = 40;
+	float obsLength = 70;
 	uint32_t delayTick = 100;
 	cmdCount = 0;
 
+////// check indicate
+	//left
+	if (indicate == -1){
+		rightTurnDia -= 5;
+	} else if (indicate == 1){
+		rightTurnDia += 5;
+	}
 //// MOVE TO OBS /////////
-	robot_move_dis_obs();
+	move_straight_PID(true, initStraightDis);
+	selfDelay(delayTick);
+	robot_move_dis_obs(&uSDisCount);
 	cmdCount += 1;
-	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	selfDelay(delayTick);              // can see if we can decrease or remove it entirely
 //// 1ST TURN RIGHT ///////
 	turn_right();
 	cmdCount += 1;
-	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	selfDelay(delayTick); // can see if we can decrease or remove it entirely
 
 ////// Hug the wall. First hug along length of obstacles
-	readIR(2);
+//	readIR(2);
+//
+//	obsDist_IR_value = fabs(obsDist_IR);
+//	while (obsDist_IR_value < 20) {             // Keep hugging while obstacle is less 20cm away
+//		move_straight_PID(true, 20);
+//		readIR(2);                                   // update the obDist_IR_value each time
+////		if (obsDist_IR_value < 10000){
+////			if (obsDist_IR_value > - 10000){
+////				break;//			}//		}
+//		obsDist_IR_value = fabs(obsDist_IR);
+//	}
+//	stop_rear_wheels();
 
-	obsDist_IR_value = fabs(obsDist_IR);
-	while (obsDist_IR_value < 20) {             // Keep hugging while obstacle is less 20cm away
-		move_straight_PID(true, 20);
-		readIR(2);                                   // update the obDist_IR_value each time
-//		if (obsDist_IR_value < 10000){
-//			if (obsDist_IR_value > - 10000){
-//				break;//			}//		}
-		obsDist_IR_value = fabs(obsDist_IR);
-	}
-	stop_rear_wheels();
+
+	robot_move_dis_IR(&irDisCount1);
 	cmdCount += 1;
-	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	selfDelay(delayTick);              // can see if we can decrease or remove it entirely
 
 ///// Make a left turn 180 deg
 	 turn_left();
 	 cmdCount += 1;
-	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	 selfDelay(delayTick);            // can see if we can decrease or remove it entirely
 
 	 obsDist_IR_value = 0;
 
 /// Move along the obstacle
-	 move_straight_PID(true, 60);
+	 move_straight_PID(true, obsLength);
+
 	 cmdCount += 1;
-	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	 selfDelay(delayTick);              // can see if we can decrease or remove it entirely
 
 ///// Make a left turn 180
 	turn_left();
 	cmdCount += 1;
-	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	selfDelay(delayTick);             // can see if we can decrease or remove it entirely
 
 //// Move to initial horizontal
-	 move_straight_PID(true, 30);
+//	 move_straight_PID(true, 30);
+	 movebackDisCount = distanceToCount(obsLength) - irDisCount1 - distanceToCount(rightTurnDia);
+	 move_straight_PID_Count(movebackDisCount > 0, fabs(movebackDisCount));
 	 cmdCount += 1;
-	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	 selfDelay(delayTick); // can see if we can decrease or remove it entirely
 
 ///// Make a right turn 90
 	 turn_right();
 	 cmdCount += 1;
-	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
+	 selfDelay(delayTick);               // can see if we can decrease or remove it entirely
 
 ///////  Travel home
 	 // MUST MAKE THIS DYNAMIC  (Initial distance travelled obtained from US - 50)
-	 move_straight_PID(true, 100);
+	 move_straight_PID_Count(true, uSDisCount + distanceToCount(initStraightDis));
 	 cmdCount += 1;
 //	 HAL_Delay(130);
 
-}
-
-void robot_move_dis_IR(float* disCount){
- curAngle = 0; gyroZ = 0;
- htim1.Instance->CCR4 = servoMid;
-//  shouldReadIr = true;
-
- readIR(2);
- HAL_Delay(100);
- long countInDistanceL = 0;
- long countInDistanceR = 0;
-
- long initLeftCount = __HAL_TIM_GET_COUNTER(&htim3);
- long initRightCount = __HAL_TIM_GET_COUNTER(&htim2);
-
- last_curTask_tick = HAL_GetTick();
-  while (debugObsDist_IR < 30) {
-  if (HAL_GetTick() - last_curTask_tick >=10) {
-   move_straight_PID(true, 20);
-   last_curTask_tick = HAL_GetTick();
-
-   countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
-   countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount,  __HAL_TIM_GET_COUNTER(&htim2));
-   *disCount = (countInDistanceL + countInDistanceR)/2;
-  }
-  readIR(2);
-//  osDelay(5); // delay for IR read
- }
-//  shouldReadIr = false;
-
- stop_rear_wheels();
 }
 
 void main_test_IR(){
@@ -1924,6 +1984,17 @@ void motors(void *argument)
 							deg =0;
 						}
 						break;
+					case 'T':
+						if (indexer -1 > 1){
+							uint8_t indicate = aRxBuffer[1];
+							if (indicate == 'L') {
+								week_9_v1(-1);
+							} else if (indicate == 'R'){
+								week_9_v1(1);
+							}
+						} else {
+							week_9_v1(0);
+						}
 					default:
 						doCommand = false;
 						break;
@@ -1938,7 +2009,7 @@ void motors(void *argument)
 /* for test */
 			if (! haveTest){
 //				HAL_Delay(1000);
-				week_9_v1();
+//				week_9_v1(0);
 //				main_test_IR();
 
 
@@ -1984,7 +2055,7 @@ void move_obs_task(void *argument)
   {
   	switch (curStep){
   	 case 0:
-  		 robot_move_dis_obs();
+//  		 robot_move_dis_obs();
   		 curStep += 1;
   		 break;
   	 case 1:
@@ -2023,7 +2094,7 @@ void move_obs_task(void *argument)
   		 curStep += 1;
   	 case 5:
   		 // back to the initial pos
-  		 robot_move_dis_obs();
+//  		 robot_move_dis_obs();
   		 // move the length
   		 curStep += 1;
   	 default:
@@ -2051,19 +2122,19 @@ void move_obs_task(void *argument)
 void show(void *argument)
 {
   /* USER CODE BEGIN show */
-	uint8_t hello[20] = "";
+//	uint8_t hello[20] = "";
   /* Infinite loop */
 
   for(;;)
   {
-	  sprintf(hello, "obsUS %f", obsDist_US);
-	  OLED_ShowString(10, 0, hello);
-	  sprintf(hello, "obsIR %d", obsDist_IR);
-	  OLED_ShowString(10, 10, hello);
-	  sprintf(hello, "cmdCount %d", cmdCount);
-	  OLED_ShowString(10, 20, hello);
-	  OLED_Refresh_Gram();
-	  osDelay(100);
+//  	sprintf(hello, "US:%-4d|IR:%-4d", (int)obsDist_US, (int)obsDist_IR);
+//  	OLED_ShowString(10, 0, hello);
+//	  sprintf(hello, "mbdC %f", movebackDisCount);
+//	  OLED_ShowString(10, 10, hello);
+//	  sprintf(hello, "cmdCount %d", cmdCount);
+//	  OLED_ShowString(10, 20, hello);
+//	  OLED_Refresh_Gram();
+	  osDelay(1000);
   }
   /* USER CODE END show */
 }
