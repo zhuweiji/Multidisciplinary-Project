@@ -1716,7 +1716,7 @@ void robot_move_dis_obs(float *disCount) {
 			return;
 		}
 		if (HAL_GetTick() - last_curTask_tick >=10) {
-			move_straight_no_distance(true);
+			move_straight_PID(true, 10);
 			last_curTask_tick = HAL_GetTick();
 
 			countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
