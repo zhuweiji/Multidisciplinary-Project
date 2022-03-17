@@ -889,7 +889,7 @@ uint32_t motorAPwm = 5840; // 5820
 uint32_t motorBPwm = 5510; // 5510;
 uint32_t motorAPwmLow = 1000;
 uint32_t motorBPwmLow;
-uint32_t servoRight = 135; // measure tan 1.6/3 - set to 140 => motor will not run -> think 135 is max
+uint32_t servoRight = 130; // measure tan 1.6/3 - set to 140 => motor will not run -> think 135 is max
 uint32_t servoLeft = 53; // old 44 // measure tan: 1.7/3
 uint32_t servoMid = 73;
 float DegConstLeft;
@@ -1043,7 +1043,7 @@ float measureDiffCount (int cnt1, bool isRight, int oldTick){
  return (float)diff/(float)tick*1000; // unit it count/s
 }
 
-void move_straight_PID(bool isForward, float distance){
+void move_straight_PID_Count(bool isForward, float targetcount){
  set_wheel_direction(isForward);
  htim1.Instance->CCR4 = 90;
  HAL_Delay(500); // delay to the encoder work properly when change direction
@@ -1071,13 +1071,6 @@ void move_straight_PID(bool isForward, float distance){
  long countInDistanceR = 0;
  float currentcount = 0;
 
- float countsPerRev = 1320; //cntA value per wheel revolution (1320)
- float wheelDiam = 6.05; // init 6.43 - copy
- float wheelCirc = M_PI * wheelDiam;
-
- float numRev = distance/wheelCirc;
- float targetcount = numRev * countsPerRev;
-
 ///////////////////PID CONFIGURATION///////////////////////////////////////////////////////
  int dirCoef = 1;
  double Kp, Ki, Kd, KpL, KiL, KdL;
@@ -1095,7 +1088,7 @@ void move_straight_PID(bool isForward, float distance){
   dirCoef = -1;
  }
  if (! inLab){
-	 Kp = 1.5;
+	 Kp = 2;
 	 Ki = 0;
 	 Kd = 0;
  }
@@ -1155,10 +1148,10 @@ void move_straight_PID(bool isForward, float distance){
     }
 
     if (modRight ){
-     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA);
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_1,pwmValA*1.5);
     }
     if (modLeft){
-     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB);
+     __HAL_TIM_SetCompare(&htim8,TIM_CHANNEL_2,pwmValB*1.5);
     }
 
     rightcount = __HAL_TIM_GET_COUNTER(&htim2);
@@ -1175,6 +1168,20 @@ void move_straight_PID(bool isForward, float distance){
 
  stop_rear_wheels();
  isMeasureDis = false;
+}
+
+float distanceToCount(float distance){
+ float countsPerRev = 1320; //cntA value per wheel revolution (1320)
+  float wheelDiam = 6.05; // init 6.43 - copy
+  float wheelCirc = M_PI * wheelDiam;
+
+  float numRev = distance/wheelCirc;
+  float targetcount = numRev * countsPerRev;
+  return targetcount;
+}
+
+void move_straight_PID(bool isForward, float distance){
+  move_straight_PID_Count(isForward, distanceToCount(distance));
 }
 
 void move_straight_no_distance(bool isForward){
@@ -1198,7 +1205,7 @@ void move_straight_no_distance(bool isForward){
 //  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
 //  Ki = 1;
 //  Kd = 0.09; // 0.025 look ok but damp quite slow
-  Kp = 0; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+  Kp = 1.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
     Ki = 0;
     Kd = 0;
  } else {
@@ -1208,7 +1215,7 @@ void move_straight_no_distance(bool isForward){
   dirCoef = -1;
  }
  if (! inLab){
-	 Kp = 1.5;
+	 Kp = 1.5; // should be 1.5 out lab
 	 Ki = 0;
 	 Kd = 0;
  }
@@ -1306,19 +1313,13 @@ void move_straight_10(){
 
 void turn_left(float * targetAngle)
 {
-	htim1.Instance->CCR4 = servoMid;
-	osDelay(500);
 	htim1.Instance->CCR4 = servoLeft;
 	uint32_t pwmVal = 0;
 	uint32_t pwmVal_2 = 3000;
 
-	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
-
 	set_wheel_direction(true);
 
+	HAL_Delay(500);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 
@@ -1327,55 +1328,42 @@ void turn_left(float * targetAngle)
 	int last_curTask_tick = HAL_GetTick();
 
 	bool isAngle = false;
-
 
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
 			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
 			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
 // 83 for normal
-			if (angleNow >= 175 ) {
+			if (angleNow >= 173 ) {
 				htim1.Instance->CCR4 = servoMid;
 	//			stop_rear_wheels();
 				break;
 			}
-		last_curTask_tick = HAL_GetTick();
+			last_curTask_tick = HAL_GetTick();
 		}
 	}
-
 }
 
 void turn_right(float * targetAngle)
 {
-	uint8_t hello[20] = "";
-	sprintf(hello, "start", angleNow);
-	OLED_ShowString(10, 10, hello);
-	htim1.Instance->CCR4 = servoMid;
-	HAL_Delay(500);
+
+//	htim1.Instance->CCR4 = servoMid;
+//	HAL_Delay(500);
 	//osDelay(500);
 	htim1.Instance->CCR4 = servoRight;
 	uint32_t pwmVal = 3000;
 	uint32_t pwmVal_2 = 0;
-	sprintf(hello, "here1", angleNow);
-	OLED_ShowString(10, 10, hello);
-	HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
-	sprintf(hello, "fckmdp", angleNow);
-	OLED_ShowString(10, 10, hello);
+
 	set_wheel_direction(true);
+
+	HAL_Delay(500);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	sprintf(hello, "fckkg", angleNow);
-	OLED_ShowString(10, 10, hello);
 	angleNow = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
 
 	bool isAngle = false;
-	sprintf(hello, "before", angleNow);
-	OLED_ShowString(10, 10, hello);
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
 			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
@@ -1384,16 +1372,14 @@ void turn_right(float * targetAngle)
 //		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
 //  	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
 
-			if (angleNow <= -85) {
+			if (angleNow <= -83) {
 				htim1.Instance->CCR4 = servoMid;
-				//stop_rear_wheels();
+				stop_rear_wheels();
 				break;
 			}
-		last_curTask_tick = HAL_GetTick();
+			last_curTask_tick = HAL_GetTick();
 		}
 	}
-	sprintf(hello, "finish", angleNow);
-	OLED_ShowString(10, 10, hello);
 
 }
 
@@ -1717,17 +1703,18 @@ void week_9_v1() {
 
 	// Initialisation of IR value
 	float obsDist_IR_value = 0;
+	uint32_t delayTick = 100;
 
 	// Initial movement to box
-	move_straight_PID(true, 40); // change this to be dynamic depending on US code
+//	move_straight_PID(true, 40); // change this to be dynamic depending on US code
 	robot_move_dis_obs();
-	HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 	// turn right
 	targetAngle = 90;
 	turn_right(&targetAngle);
 	stop_rear_wheels();
-	HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 	// Hug the wall. First hug along length of obstacles
 	readIR(2);
@@ -1739,10 +1726,13 @@ void week_9_v1() {
 //		move_straight_PID(true, 20);                 // we do 20cm by 20cm movements each time
 //		obsDist_IR = 0;
 		readIR(2);                                   // update the obDist_IR_value each time
+//		if (obsDist_IR_value < 10000){
+//			if (obsDist_IR_value > - 10000){
+//				break;//			}//		}
 		obsDist_IR_value = fabs(obsDist_IR);
 	}
 	stop_rear_wheels();
-	HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 //	 move_straight_PID(true, 75);
 //	 HAL_Delay(100);
@@ -1751,8 +1741,7 @@ void week_9_v1() {
 	// Make a left turn
 	 targetAngle = 90;
 	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 //	 // Move a little so we dont bang the obstacle on the next turn
 //	 move_straight_PID(true, 5);
@@ -1768,18 +1757,23 @@ void week_9_v1() {
 //	move_straight_PID(true, 5);       // Makes a slight movement to ensure IR is in a proper position
 //	HAL_Delay(20);               // can see if we can decrease or remove it entirely
 
-	readIR(2);
-	obsDist_IR_value = fabs(obsDist_IR);
-	while (obsDist_IR_value < 20) {
+//	readIR(2);
+//	obsDist_IR_value = fabs(obsDist_IR);
+//	while (obsDist_IR_value < 20) {
+//
+////		move_straight_no_distance(true);
+//		move_straight_PID(true, 20);
+////		obsDist_IR = 0;
+//		readIR(2);
+//		obsDist_IR_value = fabs(obsDist_IR);
+//	}
+//	stop_rear_wheels();
 
-//		move_straight_no_distance(true);
-		move_straight_PID(true, 20);
-//		obsDist_IR = 0;
-		readIR(2);
-		obsDist_IR_value = fabs(obsDist_IR);
-	}
-	stop_rear_wheels();
-	HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	 obsDist_IR_value = 0;
+
+
+	 move_straight_PID(true, 60);
+	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 //	 move_straight_PID(true, 135);
 //	 HAL_Delay(100);
@@ -1788,7 +1782,7 @@ void week_9_v1() {
 	targetAngle = 90;
 	turn_left(&targetAngle);
 	stop_rear_wheels();
-	HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 //    // Move straight abit to give enough space for the left turn
 //	 move_straight_PID(true, 5);
@@ -1803,13 +1797,13 @@ void week_9_v1() {
 	 // Move straight to travel a little along the length of the wall
 	 // WE MUST MAKE THIS DYNAMIC  (can use y - x - 20)
 	 move_straight_PID(true, 30);
-	 HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 	 // Make a right turn
 	 targetAngle = 90;
 	 turn_right(&targetAngle);
 	 stop_rear_wheels();
-	 HAL_Delay(20);               // can see if we can decrease or remove it entirely
+	 HAL_Delay(delayTick);               // can see if we can decrease or remove it entirely
 
 	 //  Travel home
 	 // MUST MAKE THIS DYNAMIC  (Initial distance travelled obtained from US - 50)
@@ -1819,121 +1813,35 @@ void week_9_v1() {
 
 }
 
-void week_9_v2() {
+void robot_move_dis_IR(float* disCount){
+ curAngle = 0; gyroZ = 0;
+ htim1.Instance->CCR4 = servoMid;
+//  shouldReadIr = true;
 
-	uint8_t hello[20] = "";
-	sprintf(hello, "KG FOR GL", 0);
-	OLED_ShowString(10, 20, hello);
+ readIR(2);
+ HAL_Delay(100);
+ long countInDistanceL = 0;
+ long countInDistanceR = 0;
 
-	HAL_Delay(50);
+ long initLeftCount = __HAL_TIM_GET_COUNTER(&htim3);
+ long initRightCount = __HAL_TIM_GET_COUNTER(&htim2);
 
-	// Initialisation of IR value
-	float obsDist_IR_value = 0;
+ last_curTask_tick = HAL_GetTick();
+  while (debugObsDist_IR < 30) {
+  if (HAL_GetTick() - last_curTask_tick >=10) {
+   move_straight_PID(true, 20);
+   last_curTask_tick = HAL_GetTick();
 
-	// Initial movement to box
-	move_straight_PID(true, 150); // change this to be dynamic depending on US code
-	HAL_Delay(100);               // can see if we can decrease or remove it entirely
+   countInDistanceL = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3), initLeftCount,  __HAL_TIM_GET_COUNTER(&htim3));
+   countInDistanceR = findDiffTime(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2), initRightCount,  __HAL_TIM_GET_COUNTER(&htim2));
+   *disCount = (countInDistanceL + countInDistanceR)/2;
+  }
+  readIR(2);
+//  osDelay(5); // delay for IR read
+ }
+//  shouldReadIr = false;
 
-	// turn right
-	targetAngle = 90;
-	turn_right(&targetAngle);
-	stop_rear_wheels();
-	HAL_Delay(100);
-
-	// Hug the wall. First hug along length of obstacle
-	readIR(2);
-	sprintf(hello, "IR1 %f", obsDist_IR);
-	OLED_ShowString(10, 20, hello);
-	OLED_Refresh_Gram();
-
-	obsDist_IR_value = fabs(obsDist_IR);
-	while (obsDist_IR_value < 20) {             // Keep hugging while obstacle is less 20cm away
-		sprintf(hello, "IR1 %f", obsDist_IR);
-		OLED_ShowString(10, 20, hello);
-		OLED_Refresh_Gram();
-
-		move_straight_PID(true, 20);                 // we do 20cm by 20cm movements each time
-		obsDist_IR = 0;
-		readIR(2);                                   // update the obDist_IR_value each time
-		obsDist_IR_value = fabs(obsDist_IR);
-	}
-
-//	 move_straight_PID(true, 75);
-//	 HAL_Delay(100);
-//
-
-	// Make a left turn
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(100);
-
-	 // Move a little so we dont bang the obstacle on the next turn
-	 move_straight_PID(true, 10);
-	 HAL_Delay(100);
-
-	 // Make a left turn
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(100);
-
-  // Moves along the length of the obstacle
-	move_straight_PID(true, 10);       // Makes a slight movement to ensure IR is in a proper position
-	HAL_Delay(100);
-
-	readIR(2);
-	sprintf(hello, "IR1 %f", obsDist_IR);
-	OLED_ShowString(10, 20, hello);
-	OLED_Refresh_Gram();
-
-	obsDist_IR_value = fabs(obsDist_IR);
-	while (obsDist_IR_value < 20) {
-		sprintf(hello, "IR1 %f", obsDist_IR);
-		OLED_ShowString(10, 20, hello);
-		OLED_Refresh_Gram();
-
-		move_straight_PID(true, 20);
-		obsDist_IR = 0;
-		readIR(2);
-		obsDist_IR_value = fabs(obsDist_IR);
-	}
-
-//	 move_straight_PID(true, 135);
-//	 HAL_Delay(100);
-
-	// Make a left turn
-	targetAngle = 90;
-	turn_left(&targetAngle);
-	stop_rear_wheels();
-	HAL_Delay(100);
-
-    // Move straight abit to give enough space for the left turn
-	 move_straight_PID(true, 10);
-	 HAL_Delay(100);
-
-     // Make a left turn
-	 targetAngle = 90;
-	 turn_left(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(100);
-
-	 // Move straight to travel a little along the length of the wall
-	 // WE MUST MAKE THIS DYNAMIC  (can use y - x - 20)
-	 move_straight_PID(true, 30);
-	 HAL_Delay(100);
-
-	 // Make a right turn
-	 targetAngle = 90;
-	 turn_right(&targetAngle);
-	 stop_rear_wheels();
-	 HAL_Delay(100);
-
-	 //  Travel home
-	 // MUST MAKE THIS DYNAMIC  (Initial distance travelled obtained from US - 50)
-	 move_straight_PID(true, 80);
-	 HAL_Delay(130);
-
+ stop_rear_wheels();
 }
 
 void main_test_IR(){
@@ -2110,13 +2018,16 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-				HAL_Delay(1000);
+//				HAL_Delay(1000);
 				week_9_v1();
 //				main_test_IR();
 
 
 
 //				robot_move_dis_obs();
+//				targetAngle = 90;
+//				turn_right(&targetAngle);
+//				stop_rear_wheels();
 
 				haveTest = true;
 
