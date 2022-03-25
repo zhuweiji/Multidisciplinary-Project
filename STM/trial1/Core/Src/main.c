@@ -92,7 +92,7 @@ float targetAngle = 0;
 float curAngle = 0;
 uint8_t readGyroZData[2];
 int16_t gyroZ;
-float angleNow = 0;
+float curAngleTurn = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -821,30 +821,30 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
   txCount +=1 ;
 }
 
-uint32_t IC_Val1 = 0, IC_Val2 = 0;
-uint8_t Is_First_Captured = 0;
-float obsDist_US = 0;
-uint8_t icCBCount = 0;
+uint32_t iCVal1 = 0, iCVal2 = 0;
+uint8_t isFirstCapture = 0;
+float obsDistUS = 0;
+uint8_t icCBCount = 0; // count number of callbacks for debug
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	icCBCount += 1;
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)  // if the interrupt source is channel2 (TRI: TIM4_CH2)
 	{
-		if (Is_First_Captured==0) // if the first value is not captured
+		if (isFirstCapture==0) // if the first value is not captured
 		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
+			iCVal1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
+			isFirstCapture = 1;  // set the first captured as true
 			// Now change the polarity to falling edge
 			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
 		}
 
-		else if (Is_First_Captured==1)   // if the first is already captured
+		else if (isFirstCapture==1)   // if the first is already captured
 		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);  // read second value
+			iCVal2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);  // read second value
 			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			obsDist_US = (IC_Val2 > IC_Val1 ? (IC_Val2 - IC_Val1) : (65535 - IC_Val1 + IC_Val2)) * 0.034 / 2;
-			Is_First_Captured = 0; // set it back to false
+			obsDistUS = (iCVal2 > iCVal1 ? (iCVal2 - iCVal1) : (65535 - iCVal1 + iCVal2)) * 0.034 / 2;
+			isFirstCapture = 0; // set it back to false
 
 			// set polarity to rising edge
 			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
@@ -970,19 +970,17 @@ float measureDiffVelo (int cnt1_A, int cnt1_B, int oldTick){
   return veloB-veloA;
 }
 
-/* distance should be in cm*/
+/* distance should be in cm
+ * simple move straight, without pid
+ * */
 void move_straight(bool isForward, float distance)
 {
-//	uint32_t distance_ticks = ((distance/100)/(0.065*3.1416)) / (speedConstant/330*36) *60 * 1000;
-	//(1*1.24/(0.065*3.1416)) / (1180/330*36) *60 * 1000
 	set_wheel_direction(isForward);
-//	uint8_t hello_A[20];
 	isMeasureDis = true; // trigger measure distance
 	float measuredDis = 0;
 	float diffVelo = 0; // veloB-veloA;
 	int cnt1_A, cnt1_B, cnt1_velo_A, cnt1_velo_B;
 	int oldTick;
-//	htim1.Instance->CCR4 = 66;
 	HAL_Delay(200);
 	htim1.Instance->CCR4 = 74; // see how
 	HAL_Delay(200);
@@ -1052,7 +1050,6 @@ void move_straight_PID_Count(bool isForward, float targetcount){
 
  double offset = 0; // output Pid
  double input = 0; // input Pid
- // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
  uint16_t initPwmA = 3000;
  uint16_t initPwmB = 3000;
  if (! isForward){
@@ -1075,12 +1072,9 @@ void move_straight_PID_Count(bool isForward, float targetcount){
  int dirCoef = 1;
  double Kp, Ki, Kd, KpL, KiL, KdL;
  if (isForward){
-//  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-//  Ki = 1;
-//  Kd = 0.09; // 0.025 look ok but damp quite slow
-  Kp = 0; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-    Ki = 0;
-    Kd = 0;
+  Kp = 1.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
+	Ki = 0;
+	Kd = 0;
  } else {
   Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
   Ki = 1;
@@ -1093,17 +1087,6 @@ void move_straight_PID_Count(bool isForward, float targetcount){
 	 Kd = 0;
  }
  PID_TypeDef pidControl, pidControlR;
-
-
- /// can tune Kp, Ki, Kd to the comment value - think it is the source value - not get why set set point to 0
- // cur 2 wheel: 0.15 0.75 0.02 - not work 1.2, 1, 0.405 // 9:32pm 0, 30, 0.001
-
- // straight forward work: 0.05, 10, 0.01 - but due to luck
-// PID(&pidControl, &input, &offset, 0, Kp, Ki, Kd, _PID_P_ON_E, _PID_CD_DIRECT);//150,0,1.4, and 8,0.01,1
-// PID_SetMode(&pidControl, _PID_MODE_AUTOMATIC);
-// PID_SetSampleTime(&pidControl, 10);
-// PID_SetOutputLimits(&pidControl, (int)2300 - initPwmB, (int) 3700 - initPwmB); //600
-
 
  rightcount = __HAL_TIM_GET_COUNTER(&htim2);
  leftcount = __HAL_TIM_GET_COUNTER(&htim3);
@@ -1121,11 +1104,9 @@ void move_straight_PID_Count(bool isForward, float targetcount){
  curAngle = 0;
  do {
     HAL_Delay(10);
-   	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-   	// since self test always sê gyroZ from -20 to 0 in the stable state
-//   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-//   	curAngle += ((gyroZ >= -35 && gyroZ <= 10) ? 0 : gyroZ); //inside lab
-// negative moves it to the left, positive moves it to the right
+   	__readGyroZ(&hi2c1, readGyroZData, gyroZ);
+   	// since self test see gyroZ from -35 to 0 in the stable state
+   	// negative moves it to the left, positive moves it to the right
    	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
    	input = -curAngle;
 
@@ -1172,7 +1153,7 @@ void move_straight_PID_Count(bool isForward, float targetcount){
 
 float distanceToCount(float distance){
  float countsPerRev = 1320; //cntA value per wheel revolution (1320)
-  float wheelDiam = 6.05; // init 6.43 - copy
+  float wheelDiam = 6.05; // real 6.5 - modify due to error
   float wheelCirc = M_PI * wheelDiam;
 
   float numRev = distance/wheelCirc;
@@ -1184,12 +1165,14 @@ void move_straight_PID(bool isForward, float distance){
   move_straight_PID_Count(isForward, distanceToCount(distance));
 }
 
+/**
+ * just move straight without any distance
+ */
 void move_straight_no_distance(bool isForward){
  set_wheel_direction(isForward);
 
  double offset = 0; // output Pid
  double input = 0; // input Pid
- // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
  uint16_t pwmValA, pwmValB;
  uint16_t initPwmA = 3000;
  uint16_t initPwmB = 3000;
@@ -1202,9 +1185,6 @@ void move_straight_no_distance(bool isForward){
  int dirCoef = 1;
  double Kp, Ki, Kd;
  if (isForward){
-//  Kp = 0.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
-//  Ki = 1;
-//  Kd = 0.09; // 0.025 look ok but damp quite slow
   Kp = 1.5; // look ok 0.01 0 0 but still depends on the battery - work with 3100 and 2900 //second 0.01 0.5 0
     Ki = 0;
     Kd = 0;
@@ -1224,7 +1204,7 @@ void move_straight_no_distance(bool isForward){
 	 modLeft = true;
 	 modRight = true;
 
-	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+	__readGyroZ(&hi2c1, readGyroZData, gyroZ);
 	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
 	input = -curAngle;
 
@@ -1253,10 +1233,8 @@ void move_straight_no_distance(bool isForward){
 /* distance should be in cm ALT FUNCTION FOR THREE POINT*/
 void move_straight_three_point(bool isForward, float distance)
 {
-//	uint32_t distance_ticks = ((distance/100)/(0.065*3.1416)) / (speedConstant/330*36) *60 * 1000;
-	//(1*1.24/(0.065*3.1416)) / (1180/330*36) *60 * 1000
+
 	set_wheel_direction(isForward);
-//	uint8_t hello_A[20];
 	isMeasureDis = true; // trigger measure distance
 	float measuredDis = 0;
 	float diffVelo = 0; // veloB-veloA;
@@ -1293,6 +1271,9 @@ void move_straight_three_point(bool isForward, float distance)
 	stop_rear_wheels();
 }
 
+/**
+ * hard code move_straight_for 10cm
+ */
 void move_straight_10(){
 	htim1.Instance->CCR4 = servoMid;
 	osDelay(500);
@@ -1323,7 +1304,7 @@ void turn_left()
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
 
-	angleNow = 0;
+	curAngleTurn = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
 
@@ -1331,10 +1312,10 @@ void turn_left()
 
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
-			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+			__readGyroZ(&hi2c1, readGyroZData, gyroZ);
+			curAngleTurn += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
 // 83 for normal
-			if (angleNow >= 173 ) {
+			if (curAngleTurn >= 173 ) {
 				htim1.Instance->CCR4 = servoMid;
 				stop_rear_wheels();
 				break;
@@ -1347,9 +1328,6 @@ void turn_left()
 void turn_right()
 {
 
-//	htim1.Instance->CCR4 = servoMid;
-//	HAL_Delay(500);
-	//osDelay(500);
 	htim1.Instance->CCR4 = servoRight;
 	uint32_t pwmVal = 3000;
 	uint32_t pwmVal_2 = 1000;
@@ -1359,20 +1337,17 @@ void turn_right()
 	HAL_Delay(500);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal_2);
 	__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
-	angleNow = 0;
+	curAngleTurn = 0;
 	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
 
 	bool isAngle = false;
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
-			__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+			__readGyroZ(&hi2c1, readGyroZData, gyroZ);
 			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
 
-//		  angleNow += ((gyroZ >= -1 && gyroZ <= 1) ? 0 : gyroZ); //outside lab
-//  	angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
-
-			if (angleNow <= -83) {
+			if (curAngleTurn <= -83) {
 				htim1.Instance->CCR4 = servoMid;
 				stop_rear_wheels();
 				break;
@@ -1439,14 +1414,15 @@ void turn_deg( int deg, bool isRight, bool isForward){
 	cnt1_velo_B = cnt1_B;
 	oldTick = HAL_GetTick();
 
-	float angleNow = 0; gyroZ = 0;
+	curAngleTurn = 0;
+	gyroZ = 0;
 	int last_curTask_tick = HAL_GetTick();
 	do {
 	  if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
-		  __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-		  angleNow += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-//		  angleNow += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
-		  if (abs(angleNow - deg) < 0.01) break;
+		  __readGyroZ(&hi2c1, readGyroZData, gyroZ);
+		  curAngleTurn += GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+//		  curAngleTurn += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
+		  if (abs(curAngleTurn - deg) < 0.01) break;
 		  last_curTask_tick = HAL_GetTick();
 	  }
 	} while(1);
@@ -1503,10 +1479,10 @@ void readIR(int irNum){
 	uint16_t dataPoint = 0; uint32_t IR_data_raw_acc = 0;
 	isMeasureDis = true;
 	if (irNum == 1){
-		__ADC_Read_Dist(&hadc1, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
+		__aDCReadDist(&hadc1, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
 		HAL_ADC_Stop(&hadc1);
 	} else if (irNum == 2) {
-		__ADC_Read_Dist(&hadc2, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
+		__aDCReadDist(&hadc2, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
 		HAL_ADC_Stop(&hadc2);
 	}
 	debugObsDist_IR = fabs(obsDist_IR);
@@ -1521,7 +1497,6 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
 
  double offset = 0; // output Pid
  double input = 0; // input Pid
- // from copy source - they set it to 4000 - 4000 fw and 3000 -3000  bw
  uint16_t initPwm = 3000;
 
  uint16_t pwmValA = initPwm;
@@ -1571,8 +1546,6 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
  gyroZ = 0;
  curAngle = 0;
 
-
-
  readIR(1);
  float initIRDis = obsDist_IR;
  debugObsDist_IR = obsDist_IR;
@@ -1582,11 +1555,9 @@ void move_straight_PID_IR(bool isForward, long* distanceCount){
  do {
     HAL_Delay(10);
     readIR(1);
-   	__Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+   	__readGyroZ(&hi2c1, readGyroZData, gyroZ);
    	// since self test always sê gyroZ from -20 to 0 in the stable state
-//   	curAngle += ((gyroZ >= -20 && gyroZ <= 10) ? 0 : gyroZ); // / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-//   	curAngle += ((gyroZ >= -35 && gyroZ <= 10) ? 0 : gyroZ); //inside lab
-// negative moves it to the left, positive moves it to the right
+   	// negative moves it to the left, positive moves it to the right
    	curAngle += ((gyroZ >= -35 && gyroZ <= 25) ? 0 : gyroZ); //outside lab
    	input = -curAngle;
 
@@ -1659,37 +1630,7 @@ void robot_move_dis_IR(float* disCount){
 }
 ////////////////////////ADC IR END //////////////////////////////////////
 
-//// MOVE OBSTACLE /////
-//void robot_move_dis_obs() {
-//	htim1.Instance->CCR4 = servoMid;
-//	curAngle = 0; gyroZ = 0;
-//	obsDist_US = 1000;
-//	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
-//	HAL_Delay(500);
-//
-//	// reads US constantly
-//	last_curTask_tick = HAL_GetTick();
-//	do {
-////		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
-//		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-//		__delay_us(&htim4, 10); // wait for 10us
-//		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-//		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
-//		osDelay(10); // give timer interrupt chance to update obsDist_US value
-//		if (obsDist_US <= 35){
-//			stop_rear_wheels();
-//			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
-//			return;
-//		}
-//		else if (HAL_GetTick() - last_curTask_tick >=10) {
-//			move_straight_no_distance(true);
-//			last_curTask_tick = HAL_GetTick();
-//		}
-//		isMeasureDis = true;
-//	} while (1);
-//}
-
-void robot_move_dis_obs(float *disCount) {
+void robot_move_to_obs(float *disCount) {
 	htim1.Instance->CCR4 = servoMid;
 	curAngle = 0; gyroZ = 0;
 	obsDist_US = 1000;
@@ -1706,7 +1647,7 @@ void robot_move_dis_obs(float *disCount) {
 	last_curTask_tick = HAL_GetTick();
 	do {
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-		__delay_us(&htim4, 10); // wait for 10us
+		__delayUs(&htim4, 10); // wait for 10us
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 		selfDelay(100); // give timer interrupt chance to update obsDist_US value
@@ -1758,7 +1699,7 @@ void week_9_v1(int indicate) {
 //// MOVE TO OBS /////////
 	move_straight_PID(true, initStraightDis);
 	selfDelay(delayTick);
-	robot_move_dis_obs(&uSDisCount);
+	robot_move_to_obs(&uSDisCount);
 	cmdCount += 1;
 	selfDelay(delayTick);              // can see if we can decrease or remove it entirely
 //// 1ST TURN RIGHT ///////
@@ -1767,20 +1708,6 @@ void week_9_v1(int indicate) {
 	selfDelay(delayTick); // can see if we can decrease or remove it entirely
 
 ////// Hug the wall. First hug along length of obstacles
-//	readIR(2);
-//
-//	obsDist_IR_value = fabs(obsDist_IR);
-//	while (obsDist_IR_value < 20) {             // Keep hugging while obstacle is less 20cm away
-//		move_straight_PID(true, 20);
-//		readIR(2);                                   // update the obDist_IR_value each time
-////		if (obsDist_IR_value < 10000){
-////			if (obsDist_IR_value > - 10000){
-////				break;//			}//		}
-//		obsDist_IR_value = fabs(obsDist_IR);
-//	}
-//	stop_rear_wheels();
-
-
 	robot_move_dis_IR(&irDisCount1);
 	cmdCount += 1;
 	selfDelay(delayTick);              // can see if we can decrease or remove it entirely
@@ -1829,10 +1756,10 @@ void main_test_IR(){
 		do {
 			__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 			HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-			__delay_us(&htim4, 10); // wait for 10us
+			__delayUs(&htim4, 10); // wait for 10us
 			HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 	//		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
-			osDelay(10); // give timer interrupt chance to update obsDist_US value
+			osDelay(10); // give timer interrupt chance to update obsDistUS value
 		} while (1);
 		HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 
@@ -1859,10 +1786,10 @@ void main_test_US_move_20(){
 	last_curTask_tick = HAL_GetTick();
 	do {
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-		__delay_us(&htim4, 10); // wait for 10us
+		__delayUs(&htim4, 10); // wait for 10us
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-		HAL_Delay(50); // give timer interrupt chance to update obsDist_US value
-		if (obsDist_US <= 35) {
+		HAL_Delay(50); // give timer interrupt chance to update obsDistUS value
+		if (obsDistUS <= 35) {
 			stop_rear_wheels();
 			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 			return;
@@ -1878,13 +1805,8 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-	uint8_t ch = 'A';
 	  for(;;)
 	  {
-//		HAL_UART_Transmit(&huart3,(uint8_t *)&ch,1,0xFFFF);
-//		if(ch<'Z')
-//			ch++;
-//		else ch = 'A';
 	    osDelay(5000);
 	  }
   /* USER CODE END 5 */
@@ -1902,17 +1824,6 @@ bool haveSendSignalBack = false;
 void motors(void *argument)
 {
   /* USER CODE BEGIN motors */
-	//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-	//	for(;;) {
-	//		htim1.Instance->CCR4 = 110; //82
-	//		osDelay(2000);
-	//		htim1.Instance->CCR4 = 74; //72
-	//		osDelay(2000);
-	//		htim1.Instance->CCR4 = 44; //62
-	//		osDelay(2000);
-	//		htim1.Instance->CCR4 = 74; //62
-	//		osDelay(2000);
-	//	}
 	uint16_t pwmVal;
 	uint16_t pwmVal_2;
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
@@ -1928,12 +1839,10 @@ void motors(void *argument)
 	 * init the variable base on lab condition
 	 */
 	if (inLab) {
-//		motorBPwmLow = 1030;
 		motorBPwmLow = 1020;
 		DegConstLeft = 0.97;
 		DegConstRight = 0.97;
 	} else {
-//		motorBPwmLow = 1030;
 		motorBPwmLow = 1000; //2300
 		motorAPwmLow = 1000;
 		DegConstLeft = 0.97;
@@ -1961,14 +1870,6 @@ void motors(void *argument)
 				switch (aRxBuffer[0]){
 					case 'F':
 						straightDistance = arrTofloat(aRxBuffer,1,indexer-1);
-//						if (straightDistance < (float) 50){
-//							int moveTime = (int) straightDistance/10;
-//							for (int i=0; i < moveTime; i ++){
-//								move_straight_10();
-//							}
-//						} else {
-//							move_straight(true, straightDistance);
-//						}
 						move_straight_PID(true, straightDistance);
 						straightDistance = 0;
 						break;
@@ -2012,16 +1913,8 @@ void motors(void *argument)
 						}
 						break;
 					case 'T':
-						if (indexer -1 > 1){
-							uint8_t indicate = aRxBuffer[1];
-							if (indicate == 'L') {
-								week_9_v1(-1);
-							} else if (indicate == 'R'){
-								week_9_v1(1);
-							}
-						} else {
-							week_9_v1(0);
-						}
+						week_9_v1(0);
+						break;
 					default:
 						doCommand = false;
 						break;
@@ -2035,23 +1928,7 @@ void motors(void *argument)
 			}
 /* for test */
 			if (! haveTest){
-//				HAL_Delay(1000);
-
-
-				week_9_v1(0);
-
-//				main_test_US_move_20();
-
-
-//				main_test_IR();
-
-
-
-//				robot_move_dis_obs();
-//				targetAngle = 90;
-//				turn_right(&targetAngle);
-//				stop_rear_wheels();
-
+//				week_9_v1(0);
 				haveTest = true;
 
 			}
@@ -2070,12 +1947,6 @@ void motors(void *argument)
 void move_obs_task(void *argument)
 {
   /* USER CODE BEGIN move_obs_task */
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-//	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
-//	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-//	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-
 	bool haveDone = false;
 
 	uint8_t curStep = -1;
@@ -2133,13 +2004,6 @@ void move_obs_task(void *argument)
   	 default:
   		 break;
   	}
-
-//  	if (curStep == -1){
-//  		isMeasureDis = true;
-//  		move_straight_PID_IR(true, &distanceCount);
-//  		curStep -= 1;
-//  		haveDone = false;
-//  	}
     osDelay(1000);
   }
   /* USER CODE END move_obs_task */
@@ -2160,11 +2024,11 @@ void show(void *argument)
 
   for(;;)
   {
-//  	sprintf(hello, "US:%-4d|IR:%-4d", (int)obsDist_US, (int)obsDist_IR);
+//  	sprintf(hello, "US:%-4d|IR:%-4d", (int)obsDistUS, (int)obsDist_IR);
 //  	OLED_ShowString(10, 0, hello);
 
 
-//	  sprintf(hello, "US %f", obsDist_US);
+//	  sprintf(hello, "US %f", obsDistUS);
 //	  OLED_ShowString(10, 20, hello);
 
 
