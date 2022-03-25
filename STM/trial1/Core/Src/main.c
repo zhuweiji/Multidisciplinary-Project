@@ -71,13 +71,6 @@ const osThreadAttr_t MotorTask_attributes = {
   .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for MoveObs */
-osThreadId_t MoveObsHandle;
-const osThreadAttr_t MoveObs_attributes = {
-  .name = "MoveObs",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
 /* Definitions for ShowTask */
 osThreadId_t ShowTaskHandle;
 const osThreadAttr_t ShowTask_attributes = {
@@ -109,7 +102,6 @@ static void MX_ADC2_Init(void);
 static void MX_TIM4_Init(void);
 void StartDefaultTask(void *argument);
 void motors(void *argument);
-void move_obs_task(void *argument);
 void show(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -194,9 +186,6 @@ int main(void)
 
   /* creation of MotorTask */
   MotorTaskHandle = osThreadNew(motors, NULL, &MotorTask_attributes);
-
-  /* creation of MoveObs */
-  MoveObsHandle = osThreadNew(move_obs_task, NULL, &MoveObs_attributes);
 
   /* creation of ShowTask */
   ShowTaskHandle = osThreadNew(show, NULL, &ShowTask_attributes);
@@ -1345,7 +1334,7 @@ void turn_right()
 	while (!isAngle){
 		if (HAL_GetTick() - last_curTask_tick >= 10) { // sample gyro every 10ms
 			__readGyroZ(&hi2c1, readGyroZData, gyroZ);
-			angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+			curAngleTurn += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
 
 			if (curAngleTurn <= -83) {
 				htim1.Instance->CCR4 = servoMid;
@@ -1633,7 +1622,7 @@ void robot_move_dis_IR(float* disCount){
 void robot_move_to_obs(float *disCount) {
 	htim1.Instance->CCR4 = servoMid;
 	curAngle = 0; gyroZ = 0;
-	obsDist_US = 1000;
+	obsDistUS = 1000;
 	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
 	HAL_Delay(500);
 
@@ -1651,7 +1640,7 @@ void robot_move_to_obs(float *disCount) {
 		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
 		__HAL_TIM_ENABLE_IT(&htim4, TIM_IT_CC2);
 		selfDelay(100); // give timer interrupt chance to update obsDist_US value
-		if (obsDist_US <= 35) {
+		if (obsDistUS <= 35) {
 			stop_rear_wheels();
 			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
 			return;
@@ -1774,33 +1763,6 @@ void main_test_IR(){
   * @retval None
   */
 /* USER CODE END Header_StartDefaultTask */
-
-void main_test_US_move_20(){
-	htim1.Instance->CCR4 = servoMid;
-	curAngle = 0; gyroZ = 0;
-	obsDist_US = 1000;
-	HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
-	HAL_Delay(500);
-
-	// reads US constantly
-	last_curTask_tick = HAL_GetTick();
-	do {
-		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-		__delayUs(&htim4, 10); // wait for 10us
-		HAL_GPIO_WritePin(US_TRIG_GPIO_Port, US_TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-		HAL_Delay(50); // give timer interrupt chance to update obsDistUS value
-		if (obsDistUS <= 35) {
-			stop_rear_wheels();
-			HAL_TIM_IC_Stop_IT(&htim4, TIM_CHANNEL_2);
-			return;
-		}
-		if (HAL_GetTick() - last_curTask_tick >=10) {
-			move_straight_PID(true, 10);
-		}
-	} while (1);
-
-}
-
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
@@ -1935,78 +1897,6 @@ void motors(void *argument)
 	  	osDelay(1000);
 	  }
   /* USER CODE END motors */
-}
-
-/* USER CODE BEGIN Header_move_obs_task */
-/**
-* @brief Function implementing the MoveObs thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_move_obs_task */
-void move_obs_task(void *argument)
-{
-  /* USER CODE BEGIN move_obs_task */
-	bool haveDone = false;
-
-	uint8_t curStep = -1;
-	float length1 = 0;
-	float length2 = 0;
-
-	long distanceCount = 0;
-  /* Infinite loop */
-  for(;;)
-  {
-  	switch (curStep){
-  	 case 0:
-//  		 robot_move_dis_obs();
-  		 curStep += 1;
-  		 break;
-  	 case 1:
-  		 // turn right 90
-  		curStep += 1;
-  		break;
-  	 case 2:
-  		 ///// move until pass the obstacle
-  		// if not found IR - haven't meet obstacle yet
-  		// move until found
-  		// => move util not found
-
-  		// if found IR - have meet obstacle
-  	  // move until not foud
-
-  		 // save this value - lenght 1 -
-  		curStep += 1;
-  		break;
-  	 case 3:
-  		 // turn left 180 - to the other side
-  		 curStep += 1;
-  		 break;
-  	 case 4:
-  		 // move util pass the obstacle, then turn to other side again
-
-  		 if (length2 >= length1){
-  			 // the case that have meet obstacle after fist 1st deg turn
-
-  			 // turn left 180
-  		 } else {
-  			 // the case that have not meet obstacle after fist 1st deg turn
-
-  			 // turn left 90
-  			 // turn right 90 - if diff it to small - may remove this and go straight
-  		 }
-  		 curStep += 1;
-  	 case 5:
-  		 // back to the initial pos
-//  		 robot_move_dis_obs();
-  		 // move the length
-  		 curStep += 1;
-  	 default:
-  		 break;
-  	}
-    osDelay(1000);
-  }
-  /* USER CODE END move_obs_task */
 }
 
 /* USER CODE BEGIN Header_show */
